@@ -1,82 +1,13 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Multi-Tenant IoT Control Platform</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-</head>
-<body class="bg-slate-900 text-slate-100 min-h-screen p-6 font-sans">
-    <div class="max-w-4xl mx-auto space-y-6">
+<script>
+        // Automatically detect whether we are running locally or live on Render
+        const API_URL = window.location.hostname === 'localhost' 
+            ? 'http://localhost:3000/api' 
+            : '/api';
 
-        <!-- Header -->
-        <header class="flex justify-between items-center border-b border-slate-800 pb-4">
-            <div>
-                <h1 class="text-2xl font-bold text-indigo-400">⚡ IoT Multi-Tenant Platform</h1>
-                <p class="text-sm text-slate-400">Secure Remote Hardware Control & Management</p>
-            </div>
-            <div id="user-status" class="text-sm font-medium text-slate-400">Not logged in</div>
-        </header>
+        const WS_URL = window.location.hostname === 'localhost' 
+            ? 'ws://localhost:3000' 
+            : `wss://${window.location.host}`;
 
-        <!-- Auth Section -->
-        <div id="auth-card" class="bg-slate-800 p-6 rounded-xl border border-slate-700 shadow-xl max-w-md mx-auto">
-            <div class="flex border-b border-slate-700 mb-4">
-                <button id="tab-login" onclick="switchAuthTab('login')" class="flex-1 py-2 font-semibold text-indigo-400 border-b-2 border-indigo-500">Login</button>
-                <button id="tab-register" onclick="switchAuthTab('register')" class="flex-1 py-2 font-semibold text-slate-400 hover:text-slate-200">Register</button>
-            </div>
-
-            <form id="auth-form" onsubmit="handleAuth(event)" class="space-y-4">
-                <div>
-                    <label class="block text-sm font-medium text-slate-300 mb-1">Username</label>
-                    <input type="text" id="auth-username" required class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-slate-100 focus:outline-none focus:border-indigo-500">
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-slate-300 mb-1">Password</label>
-                    <input type="password" id="auth-password" required class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-slate-100 focus:outline-none focus:border-indigo-500">
-                </div>
-                <button type="submit" id="auth-btn" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-semibold py-2.5 rounded-lg transition">Login</button>
-                <p id="auth-error" class="text-red-400 text-xs hidden"></p>
-            </form>
-        </div>
-
-        <!-- Main Dashboard Section (Hidden by default until logged in) -->
-        <div id="dashboard" class="hidden space-y-6">
-            
-            <!-- Provision New Device -->
-            <div class="bg-slate-800 p-6 rounded-xl border border-slate-700 shadow-xl">
-                <h2 class="text-lg font-semibold text-slate-200 mb-4">➕ Register / Provision Device</h2>
-                <form onsubmit="registerDevice(event)" class="flex flex-col sm:flex-row gap-4">
-                    <input type="text" id="new-device-id" placeholder="Device ID (e.g. device1)" required class="flex-1 bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-slate-100 focus:outline-none focus:border-indigo-500">
-                    <input type="text" id="new-device-name" placeholder="Device Name (e.g. Living Room LED)" required class="flex-1 bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-slate-100 focus:outline-none focus:border-indigo-500">
-                    <button type="submit" class="bg-emerald-600 hover:bg-emerald-500 text-white font-semibold px-6 py-2.5 rounded-lg transition">Add Device</button>
-                </form>
-            </div>
-
-            <!-- Registered Devices Grid -->
-            <div class="bg-slate-800 p-6 rounded-xl border border-slate-700 shadow-xl">
-                <div class="flex justify-between items-center mb-4">
-                    <h2 class="text-lg font-semibold text-slate-200">📱 Your Registered Hardware</h2>
-                    <button onclick="logout()" class="text-xs text-red-400 hover:underline">Log Out</button>
-                </div>
-                <div id="devices-list" class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <!-- Dynamic devices populated here -->
-                </div>
-            </div>
-
-            <!-- Activity Log -->
-            <div class="bg-slate-800 p-6 rounded-xl border border-slate-700 shadow-xl">
-                <h2 class="text-sm font-semibold text-slate-400 mb-2">📜 Live Activity Console</h2>
-                <div id="console-log" class="bg-slate-950 p-4 rounded-lg font-mono text-xs text-emerald-400 h-32 overflow-y-auto space-y-1">
-                    <div>> Console initialized. Waiting for WebSocket actions...</div>
-                </div>
-            </div>
-        </div>
-
-    </div>
-
-    <script>
-        const API_URL = 'http://localhost:3000/api';
-        const WS_URL = 'ws://localhost:3000';
         let token = localStorage.getItem('iot_token');
         let currentMode = 'login';
         let socket;
@@ -242,5 +173,3 @@
             initDashboard();
         }
     </script>
-</body>
-</html>
