@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Multi-Tenant IoT Control Platform</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen p-6 font-sans">
+    <div class="max-w-4xl mx-auto space-y-6">
+
+        <!-- Header -->
+        <header class="flex justify-between items-center border-b border-slate-800 pb-4">
+            <div>
+                <h1 class="text-2xl font-bold text-indigo-400">⚡ IoT Multi-Tenant Platform</h1>
+                <p class="text-sm text-slate-400">Secure Remote Hardware Control & Management</p>
+            </div>
+            <div id="user-status" class="text-sm font-medium text-slate-400">Not logged in</div>
+        </header>
+
+        <!-- Auth Section -->
+        <div id="auth-card" class="bg-slate-800 p-6 rounded-xl border border-slate-700 shadow-xl max-w-md mx-auto">
+            <div class="flex border-b border-slate-700 mb-4">
+                <button id="tab-login" onclick="switchAuthTab('login')" class="flex-1 py-2 font-semibold text-indigo-400 border-b-2 border-indigo-500">Login</button>
+                <button id="tab-register" onclick="switchAuthTab('register')" class="flex-1 py-2 font-semibold text-slate-400 hover:text-slate-200">Register</button>
+            </div>
+
+            <form id="auth-form" onsubmit="handleAuth(event)" class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-slate-300 mb-1">Username</label>
+                    <input type="text" id="auth-username" required class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-slate-100 focus:outline-none focus:border-indigo-500">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-300 mb-1">Password</label>
+                    <input type="password" id="auth-password" required class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-slate-100 focus:outline-none focus:border-indigo-500">
+                </div>
+                <button type="submit" id="auth-btn" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-semibold py-2.5 rounded-lg transition">Login</button>
+                <p id="auth-error" class="text-red-400 text-xs hidden"></p>
+            </form>
+        </div>
+
+        <!-- Main Dashboard Section (Hidden by default until logged in) -->
+        <div id="dashboard" class="hidden space-y-6">
+            
+            <!-- Provision New Device -->
+            <div class="bg-slate-800 p-6 rounded-xl border border-slate-700 shadow-xl">
+                <h2 class="text-lg font-semibold text-slate-200 mb-4">➕ Register / Provision Device</h2>
+                <form onsubmit="registerDevice(event)" class="flex flex-col sm:flex-row gap-4">
+                    <input type="text" id="new-device-id" placeholder="Device ID (e.g. device1)" required class="flex-1 bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-slate-100 focus:outline-none focus:border-indigo-500">
+                    <input type="text" id="new-device-name" placeholder="Device Name (e.g. Living Room LED)" required class="flex-1 bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-slate-100 focus:outline-none focus:border-indigo-500">
+                    <button type="submit" class="bg-emerald-600 hover:bg-emerald-500 text-white font-semibold px-6 py-2.5 rounded-lg transition">Add Device</button>
+                </form>
+            </div>
+
+            <!-- Registered Devices Grid -->
+            <div class="bg-slate-800 p-6 rounded-xl border border-slate-700 shadow-xl">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-lg font-semibold text-slate-200">📱 Your Registered Hardware</h2>
+                    <button onclick="logout()" class="text-xs text-red-400 hover:underline">Log Out</button>
+                </div>
+                <div id="devices-list" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <!-- Dynamic devices populated here -->
+                </div>
+            </div>
+
+            <!-- Activity Log -->
+            <div class="bg-slate-800 p-6 rounded-xl border border-slate-700 shadow-xl">
+                <h2 class="text-sm font-semibold text-slate-400 mb-2">📜 Live Activity Console</h2>
+                <div id="console-log" class="bg-slate-950 p-4 rounded-lg font-mono text-xs text-emerald-400 h-32 overflow-y-auto space-y-1">
+                    <div>> Console initialized. Waiting for WebSocket actions...</div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        const API_URL = 'http://localhost:3000/api';
+        const WS_URL = 'ws://localhost:3000';
+        let token = localStorage.getItem('iot_token');
+        let currentMode = 'login';
+        let socket;
+
+        function log(msg) {
+            const consoleDiv = document.getElementById('console-log');
+            const time = new Date().toLocaleTimeString();
+            consoleDiv.innerHTML += `<div>[${time}] ${msg}</div>`;
+            consoleDiv.scrollTop = consoleDiv.scrollHeight;
+        }
+
+        function switchAuthTab(mode) {
+            currentMode = mode;
+            document.getElementById('auth-error').classList.add('hidden');
+            if (mode === 'login') {
+                document.getElementById('tab-login').className = 'flex-1 py-2 font-semibold text-indigo-400 border-b-2 border-indigo-500';
+                document.getElementById('tab-register').className = 'flex-1 py-2 font-semibold text-slate-400 hover:text-slate-200';
+                document.getElementById('auth-btn').innerText = 'Login';
+            } else {
+                document.getElementById('tab-register').className = 'flex-1 py-2 font-semibold text-indigo-400 border-b-2 border-indigo-500';
+                document.getElementById('tab-login').className = 'flex-1 py-2 font-semibold text-slate-400 hover:text-slate-200';
+                document.getElementById('auth-btn').innerText = 'Register Account';
+            }
+        }
+
+        async function handleAuth(e) {
+            e.preventDefault();
+            const username = document.getElementById('auth-username').value;
+            const password = document.getElementById('auth-password').value;
+            const errorEl = document.getElementById('auth-error');
+
+            try {
+                const endpoint = currentMode === 'login' ? '/login' : '/register';
+                const res = await fetch(API_URL + endpoint, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password })
+                });
+                const data = await res.json();
+
+                if (!res.ok) throw new Error(data.error || 'Authentication failed');
+
+                if (currentMode === 'register') {
+                    alert('Registration successful! Please log in.');
+                    switchAuthTab('login');
+                } else {
+                    token = data.token;
+                    localStorage.setItem('iot_token', token);
+                    initDashboard();
+                }
+            } catch (err) {
+                errorEl.innerText = err.message;
+                errorEl.classList.remove('hidden');
+            }
+        }
+
+        function logout() {
+            localStorage.removeItem('iot_token');
+            location.reload();
+        }
+
+        function initWebSocket() {
+            socket = new WebSocket(WS_URL);
+            socket.onopen = () => log('Connected to WebSocket Server');
+            socket.onmessage = (event) => {
+                const msg = JSON.parse(event.data);
+                if (msg.type === 'STATE') {
+                    log(`State Update on [${msg.topic}]: ${msg.data}`);
+                    const deviceId = msg.topic.split('/')[1];
+                    const stateBadge = document.getElementById(`state-${deviceId}`);
+                    if (stateBadge) {
+                        stateBadge.innerText = msg.data;
+                        stateBadge.className = msg.data === 'ON' 
+                            ? 'px-2 py-1 text-xs font-bold rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                            : 'px-2 py-1 text-xs font-bold rounded bg-rose-500/20 text-rose-400 border border-rose-500/30';
+                    }
+                }
+            };
+        }
+
+        async function loadDevices() {
+            try {
+                const res = await fetch(API_URL + '/devices', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const devices = await res.json();
+                const container = document.getElementById('devices-list');
+                container.innerHTML = '';
+
+                if (devices.length === 0) {
+                    container.innerHTML = `<p class="text-slate-400 text-sm col-span-2">No devices registered yet. Add one above!</p>`;
+                    return;
+                }
+
+                devices.forEach(dev => {
+                    container.innerHTML += `
+                        <div class="bg-slate-900 border border-slate-700 p-4 rounded-lg space-y-3">
+                            <div class="flex justify-between items-start">
+                                <div>
+                                    <h3 class="font-bold text-slate-100">${dev.name}</h3>
+                                    <p class="text-xs font-mono text-slate-400">ID: ${dev.device_id}</p>
+                                </div>
+                                <span id="state-${dev.device_id}" class="px-2 py-1 text-xs font-bold rounded bg-slate-800 text-slate-400 border border-slate-700">UNKNOWN</span>
+                            </div>
+                            <div class="flex gap-2">
+                                <button onclick="sendCommand('${dev.device_id}', 'ON')" class="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold py-1.5 rounded transition text-sm">TURN ON</button>
+                                <button onclick="sendCommand('${dev.device_id}', 'OFF')" class="flex-1 bg-rose-600 hover:bg-rose-500 text-white font-semibold py-1.5 rounded transition text-sm">TURN OFF</button>
+                            </div>
+                        </div>
+                    `;
+                });
+            } catch (err) {
+                log('Failed to fetch devices');
+            }
+        }
+
+        async function registerDevice(e) {
+            e.preventDefault();
+            const device_id = document.getElementById('new-device-id').value;
+            const name = document.getElementById('new-device-name').value;
+
+            try {
+                const res = await fetch(API_URL + '/devices', {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ device_id, name })
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error);
+
+                log(`Device registered: ${name} (${device_id})`);
+                document.getElementById('new-device-id').value = '';
+                document.getElementById('new-device-name').value = '';
+                loadDevices();
+            } catch (err) {
+                alert(err.message);
+            }
+        }
+
+        function sendCommand(device_id, state) {
+            if (socket && socket.readyState === WebSocket.OPEN) {
+                const payload = { token, device_id, state };
+                socket.send(JSON.stringify(payload));
+                log(`Sent ${state} command to ${device_id}`);
+            } else {
+                alert('WebSocket connection is not active.');
+            }
+        }
+
+        function initDashboard() {
+            document.getElementById('auth-card').classList.add('hidden');
+            document.getElementById('dashboard').classList.remove('hidden');
+            document.getElementById('user-status').innerText = '🔑 Logged In';
+            initWebSocket();
+            loadDevices();
+        }
+
+        // Auto login if valid token exists
+        if (token) {
+            initDashboard();
+        }
+    </script>
+</body>
+</html>
