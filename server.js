@@ -6,6 +6,7 @@ const cors = require('cors');
 const sqlite3 = require('sqlite3').verbose();
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const path = require('path');
 
 const app = express();
 app.use(cors());
@@ -155,6 +156,11 @@ wss.on('connection', (ws, req) => {
             console.error('Invalid WS message payload');
         }
     });
+});
+
+// Explicit fallback route to ensure index.html serves correctly for frontend routing/refreshes
+app.get('*', (req, res) => {
+    res.sendFile(path.join(__dirname, 'index.html'));
 });
 
 // Start Server
