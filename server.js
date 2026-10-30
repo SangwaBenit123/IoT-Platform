@@ -158,8 +158,8 @@ wss.on('connection', (ws, req) => {
     });
 });
 
-// Explicit fallback route to ensure index.html serves correctly for frontend routing/refreshes
-app.get('*', (req, res) => {
+// Explicit fallback middleware to ensure index.html serves correctly for frontend routing/refreshes
+app.use((req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
 });
 
