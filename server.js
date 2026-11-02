@@ -7,6 +7,7 @@ const sqlite3 = require('sqlite3').verbose();
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const path = require('path');
+const crypto = require('crypto');
 
 const app = express();
 app.use(cors());
@@ -24,7 +25,7 @@ const db = new sqlite3.Database('./iot_platform.db', (err) => {
     else console.log('Connected to SQLite Database.');
 });
 
-// Create tables including schedules
+// Create tables including schedules and device tokens
 db.serialize(() => {
     db.run(`CREATE TABLE IF NOT EXISTS users (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -37,8 +38,9 @@ db.serialize(() => {
     db.run(`CREATE TABLE IF NOT EXISTS devices (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         user_id INTEGER,
-        device_id TEXT UNIQUE,
+        device_id TEXT,
         name TEXT,
+        device_token TEXT,
         FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
     )`);
 
@@ -122,20 +124,33 @@ function verifyToken(req, res, next) {
     });
 }
 
-// Device Provisioning
+// Device Provisioning with User-Scoped Uniqueness & Blynk-Style Auth Token Generation
 app.post('/api/devices', verifyToken, (req, res) => {
     if (req.user.role === 'admin') {
         return res.status(403).json({ error: 'Administrators do not register personal devices.' });
     }
     const { device_id, name } = req.body;
-    db.run(`INSERT INTO devices (user_id, device_id, name) VALUES (?, ?, ?)`, [req.user.id, device_id, name], function(err) {
-        if (err) return res.status(400).json({ error: 'Device ID already registered' });
-        res.json({ message: 'Device added successfully', id: this.lastID });
+    if (!device_id || !name) return res.status(400).json({ error: 'Device ID and name are required' });
+
+    // Check if this specific user already registered this device_id
+    db.get(`SELECT * FROM devices WHERE user_id = ? AND device_id = ?`, [req.user.id, device_id], (err, existing) => {
+        if (existing) {
+            return res.status(400).json({ error: 'You have already registered this Device ID.' });
+        }
+
+        // Generate a secure unique device auth token (Blynk-style)
+        const device_token = crypto.randomBytes(16).toString('hex');
+
+        db.run(`INSERT INTO devices (user_id, device_id, name, device_token) VALUES (?, ?, ?, ?)`, 
+            [req.user.id, device_id, name, device_token], function(err) {
+            if (err) return res.status(500).json({ error: 'Database error while saving device' });
+            res.json({ message: 'Device added successfully', device_token, id: this.lastID });
+        });
     });
 });
 
 app.get('/api/devices', verifyToken, (req, res) => {
-    db.all(`SELECT device_id, name FROM devices WHERE user_id = ?`, [req.user.id], (err, rows) => {
+    db.all(`SELECT device_id, name, device_token FROM devices WHERE user_id = ?`, [req.user.id], (err, rows) => {
         if (err) return res.status(500).json({ error: 'Database error' });
         res.json(rows);
     });
@@ -147,7 +162,6 @@ app.post('/api/schedules', verifyToken, (req, res) => {
     const { device_id, action, execute_at } = req.body;
     if (!device_id || !action || !execute_at) return res.status(400).json({ error: 'Missing schedule parameters' });
 
-    // Verify ownership or admin access
     let query = `SELECT * FROM devices WHERE device_id = ?`;
     let params = [device_id];
     if (req.user.role !== 'admin') {
@@ -216,7 +230,7 @@ app.delete('/api/admin/users/:id', verifyToken, (req, res) => {
 app.get('/api/admin/monitor', verifyToken, (req, res) => {
     if (req.user.role !== 'admin') return res.status(403).json({ error: 'Access denied.' });
     db.all(`
-        SELECT users.username, devices.device_id, devices.name 
+        SELECT users.username, devices.device_id, devices.name, devices.device_token 
         FROM devices 
         JOIN users ON users.id = devices.user_id
     `, [], (err, rows) => {
@@ -227,7 +241,7 @@ app.get('/api/admin/monitor', verifyToken, (req, res) => {
 
 // Background Worker to Check and Trigger Schedules every 10 seconds
 setInterval(() => {
-    const now = new Date().toISOString().slice(0, 16); // Format matches HTML datetime-local: YYYY-MM-DDTHH:mm
+    const now = new Date().toISOString().slice(0, 16);
     db.all(`SELECT * FROM schedules WHERE execute_at <= ?`, [now], (err, rows) => {
         if (err || !rows) return;
 
@@ -236,7 +250,6 @@ setInterval(() => {
             mqttClient.publish(controlTopic, sched.action);
             console.log(`⏱️ Automated Timer Triggered: Sent ${sched.action} to ${sched.device_id}`);
 
-            // Remove executed schedule once triggered
             db.run(`DELETE FROM schedules WHERE id = ?`, [sched.id]);
         });
     });
@@ -271,6 +284,7 @@ wss.on('connection', (ws) => {
     });
 });
 
+// Safe Express fallback routing (No wildcard '*' parameter to prevent Render crashes)
 app.use((req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
 });
