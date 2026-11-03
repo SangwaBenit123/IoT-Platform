@@ -6,7 +6,7 @@
     <title>Multi-Tenant IoT Platform</title>
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body class="bg-slate-900 text-slate-100 min-h-screen p-6 font-sans">
+<body class="bg-slate-900 text-slate-100 min-h-screen p-6 font-sans scroll-smooth">
     <div class="max-w-5xl mx-auto space-y-6">
 
         <!-- Header -->
@@ -15,7 +15,10 @@
                 <h1 class="text-2xl font-bold text-indigo-400">⚡ IoT Multi-Tenant Platform</h1>
                 <p class="text-sm text-slate-400">Sensors, Actuators & Timed Automation</p>
             </div>
-            <div id="user-status" class="text-sm font-medium text-slate-400">Not logged in</div>
+            <!-- Clickable Logged In Badge -->
+            <div id="user-status" onclick="scrollToAccount()" class="text-sm font-medium text-indigo-300 bg-slate-800 border border-slate-700 px-3 py-1.5 rounded-lg cursor-pointer hover:bg-slate-700 transition shadow">
+                👤 Logged In
+            </div>
         </header>
 
         <!-- Auth Section -->
@@ -43,15 +46,15 @@
         <div id="dashboard" class="hidden space-y-6">
 
             <!-- Account Settings Card -->
-            <div class="bg-slate-800 p-6 rounded-xl border border-slate-700 shadow-xl">
-                <h2 class="text-lg font-semibold text-indigo-400 mb-4">👤 My Account Settings</h2>
+            <div id="account-section" class="bg-slate-800 p-6 rounded-xl border border-slate-700 shadow-xl">
+                <h2 class="text-lg font-semibold text-indigo-400 mb-4">👤 My Account Information & Credentials</h2>
                 <form id="accountForm" onsubmit="updateAccount(event)" class="grid grid-cols-1 sm:grid-cols-3 gap-4 items-end">
                     <div>
                         <label class="block text-sm font-medium text-slate-300 mb-1">Username</label>
                         <input type="text" id="account-username" required class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-slate-100 focus:outline-none focus:border-indigo-500">
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-slate-300 mb-1">Current Password <span class="text-xs text-slate-500">(for password change)</span></label>
+                        <label class="block text-sm font-medium text-slate-300 mb-1">Current Password <span class="text-xs text-slate-500">(to change password)</span></label>
                         <input type="password" id="current-password" placeholder="••••••••" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-slate-100 focus:outline-none focus:border-indigo-500">
                     </div>
                     <div>
@@ -59,7 +62,7 @@
                         <input type="password" id="new-password" placeholder="••••••••" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-slate-100 focus:outline-none focus:border-indigo-500">
                     </div>
                     <div class="sm:col-span-3 flex justify-end">
-                        <button type="submit" class="bg-indigo-600 hover:bg-indigo-500 text-white font-semibold px-6 py-2 rounded-lg transition text-sm">Save Changes</button>
+                        <button type="submit" class="bg-indigo-600 hover:bg-indigo-500 text-white font-semibold px-6 py-2 rounded-lg transition text-sm">Save Account Changes</button>
                     </div>
                 </form>
             </div>
@@ -156,6 +159,15 @@
             const time = new Date().toLocaleTimeString();
             consoleDiv.innerHTML += `<div>[${time}] ${msg}</div>`;
             consoleDiv.scrollTop = consoleDiv.scrollHeight;
+        }
+
+        function scrollToAccount() {
+            const accountCard = document.getElementById('account-section');
+            if (accountCard) {
+                accountCard.scrollIntoView({ behavior: 'smooth' });
+                accountCard.classList.add('ring-2', 'ring-indigo-500');
+                setTimeout(() => accountCard.classList.remove('ring-2', 'ring-indigo-500'), 1500);
+            }
         }
 
         function switchAuthTab(mode) {
@@ -478,7 +490,7 @@
             document.getElementById('dashboard').classList.remove('hidden');
             
             const role = getUserRole();
-            document.getElementById('user-status').innerText = role === 'admin' ? '🛡️ Logged In (Admin Hub)' : '🔑 Logged In';
+            document.getElementById('user-status').innerText = role === 'admin' ? '👤 Admin Account' : '👤 Logged In';
             
             loadAccountInfo();
             initWebSocket();
