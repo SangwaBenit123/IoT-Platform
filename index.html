@@ -41,6 +41,28 @@
 
         <!-- Main Dashboard Section -->
         <div id="dashboard" class="hidden space-y-6">
+
+            <!-- Account Settings Card -->
+            <div class="bg-slate-800 p-6 rounded-xl border border-slate-700 shadow-xl">
+                <h2 class="text-lg font-semibold text-indigo-400 mb-4">👤 My Account Settings</h2>
+                <form id="accountForm" onsubmit="updateAccount(event)" class="grid grid-cols-1 sm:grid-cols-3 gap-4 items-end">
+                    <div>
+                        <label class="block text-sm font-medium text-slate-300 mb-1">Username</label>
+                        <input type="text" id="account-username" required class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-slate-100 focus:outline-none focus:border-indigo-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-300 mb-1">Current Password <span class="text-xs text-slate-500">(for password change)</span></label>
+                        <input type="password" id="current-password" placeholder="••••••••" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-slate-100 focus:outline-none focus:border-indigo-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-300 mb-1">New Password <span class="text-xs text-slate-500">(optional)</span></label>
+                        <input type="password" id="new-password" placeholder="••••••••" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-slate-100 focus:outline-none focus:border-indigo-500">
+                    </div>
+                    <div class="sm:col-span-3 flex justify-end">
+                        <button type="submit" class="bg-indigo-600 hover:bg-indigo-500 text-white font-semibold px-6 py-2 rounded-lg transition text-sm">Save Changes</button>
+                    </div>
+                </form>
+            </div>
             
             <!-- Provision Device Card -->
             <div id="provision-card" class="bg-slate-800 p-6 rounded-xl border border-slate-700 shadow-xl">
@@ -197,6 +219,50 @@
             }
         }
 
+        async function loadAccountInfo() {
+            try {
+                const res = await fetch(API_URL + '/account', { headers: { 'Authorization': `Bearer ${token}` } });
+                if (res.ok) {
+                    const user = await res.json();
+                    document.getElementById('account-username').value = user.username;
+                }
+            } catch (err) {
+                console.error('Failed to load account details');
+            }
+        }
+
+        async function updateAccount(e) {
+            e.preventDefault();
+            const username = document.getElementById('account-username').value;
+            const current_password = document.getElementById('current-password').value;
+            const new_password = document.getElementById('new-password').value;
+
+            const bodyData = { username };
+            if (new_password) {
+                bodyData.current_password = current_password;
+                bodyData.new_password = new_password;
+            }
+
+            try {
+                const res = await fetch(API_URL + '/account', {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                    body: JSON.stringify(bodyData)
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error);
+
+                alert(data.message);
+                document.getElementById('current-password').value = '';
+                document.getElementById('new-password').value = '';
+                if (new_password) {
+                    logout(); // Force re-login if password was changed
+                }
+            } catch (err) {
+                alert(err.message);
+            }
+        }
+
         function initWebSocket() {
             socket = new WebSocket(WS_URL);
             socket.onopen = () => log('Connected to WebSocket Server');
@@ -276,14 +342,13 @@
                 data.forEach(item => {
                     const deviceId = item.device_id;
                     const deviceName = item.name;
+                    const deviceToken = item.device_token || 'N/A';
                     if (!deviceId) return;
 
-                    // Automatically determine if device is a sensor based on name containing "sensor" (case-insensitive)
                     const isSensor = deviceName.toLowerCase().includes('sensor');
                     const ownerTag = role === 'admin' ? `<span class="text-xs text-indigo-300 bg-indigo-950 px-2 py-0.5 rounded border border-indigo-800">Owner: ${item.username}</span>` : '';
 
                     if (!isSensor) {
-                        // Populate dropdown option only for actuators/switches
                         scheduleSelect.innerHTML += `<option value="${deviceId}">${deviceName} (${deviceId})</option>`;
                     }
 
@@ -297,7 +362,11 @@
                                     </div>
                                     <p class="text-xs font-mono text-slate-400">ID: ${deviceId}</p>
                                 </div>
-                                <span id="state-${deviceId}" class="px-2 py-1 text-xs font-bold rounded bg-slate-800 text-slate-400 border border-slate-700">${isSensor ? 'Listening for Data...' : 'Waiting...'}</span>
+                                <span id="state-${deviceId}" class="px-2 py-1 text-xs font-bold rounded bg-slate-800 text-slate-400 border border-slate-700">${isSensor ? 'Listening...' : 'Waiting...'}</span>
+                            </div>
+
+                            <div class="bg-slate-950 p-2 rounded border border-slate-800 text-xs text-amber-300 font-mono flex justify-between items-center">
+                                <span>Auth Token: <strong>${deviceToken}</strong></span>
                             </div>
                             
                             ${isSensor ? `
@@ -331,7 +400,9 @@
                 const data = await res.json();
                 if (!res.ok) throw new Error(data.error);
 
-                log(`Device registered: ${name} (${device_id})`);
+                log(`Device registered successfully! Auth Token: ${data.device_token}`);
+                alert(`Device added successfully!\n\nAuth Token: ${data.device_token}\n(Save this token for your ESP32 configuration)`);
+                
                 document.getElementById('new-device-id').value = '';
                 document.getElementById('new-device-name').value = '';
                 loadDevices();
@@ -407,8 +478,9 @@
             document.getElementById('dashboard').classList.remove('hidden');
             
             const role = getUserRole();
-            document.getElementById('user-status').innerText = role === 'admin' ? '🛡️ Logged In (Admin Control Hub)' : '🔑 Logged In';
+            document.getElementById('user-status').innerText = role === 'admin' ? '🛡️ Logged In (Admin Hub)' : '🔑 Logged In';
             
+            loadAccountInfo();
             initWebSocket();
             loadDevices();
         }

@@ -127,7 +127,46 @@ function verifyToken(req, res, next) {
     });
 }
 
-// Device Provisioning with User-Scoped Uniqueness & Blynk-Style Auth Token Generation
+// ================= ACCOUNT MANAGEMENT ROUTES =================
+
+app.get('/api/account', verifyToken, (req, res) => {
+    db.get(`SELECT id, username, role, last_login FROM users WHERE id = ?`, [req.user.id], (err, user) => {
+        if (err || !user) return res.status(404).json({ error: 'User not found' });
+        res.json(user);
+    });
+});
+
+app.put('/api/account', verifyToken, async (req, res) => {
+    const { username, current_password, new_password } = req.body;
+
+    db.get(`SELECT * FROM users WHERE id = ?`, [req.user.id], async (err, user) => {
+        if (err || !user) return res.status(404).json({ error: 'User not found' });
+
+        let updatedUsername = username ? username.trim() : user.username;
+        let updatedPasswordHash = user.password;
+
+        if (new_password) {
+            if (!current_password) {
+                return res.status(400).json({ error: 'Current password is required to set a new password.' });
+            }
+            const validPassword = await bcrypt.compare(current_password, user.password);
+            if (!validPassword) {
+                return res.status(400).json({ error: 'Current password is incorrect.' });
+            }
+            updatedPasswordHash = await bcrypt.hash(new_password, 10);
+        }
+
+        db.run(`UPDATE users SET username = ?, password = ? WHERE id = ?`, [updatedUsername, updatedPasswordHash, req.user.id], function(err) {
+            if (err) {
+                return res.status(400).json({ error: 'Username already taken or database error.' });
+            }
+            res.json({ message: 'Account updated successfully.' });
+        });
+    });
+});
+
+// ================= DEVICE PROVISIONING ROUTES =================
+
 app.post('/api/devices', verifyToken, (req, res) => {
     if (req.user.role === 'admin') {
         return res.status(403).json({ error: 'Administrators do not register personal devices.' });
@@ -135,13 +174,11 @@ app.post('/api/devices', verifyToken, (req, res) => {
     const { device_id, name } = req.body;
     if (!device_id || !name) return res.status(400).json({ error: 'Device ID and name are required' });
 
-    // Check if this specific user already registered this device_id
     db.get(`SELECT * FROM devices WHERE user_id = ? AND device_id = ?`, [req.user.id, device_id], (err, existing) => {
         if (existing) {
             return res.status(400).json({ error: 'You have already registered this Device ID.' });
         }
 
-        // Generate a secure unique device auth token (Blynk-style)
         const device_token = crypto.randomBytes(16).toString('hex');
 
         db.run(`INSERT INTO devices (user_id, device_id, name, device_token) VALUES (?, ?, ?, ?)`, 
@@ -287,7 +324,7 @@ wss.on('connection', (ws) => {
     });
 });
 
-// Safe Express fallback routing (No wildcard '*' parameter to prevent Render crashes)
+// Safe Express fallback routing
 app.use((req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
 });
