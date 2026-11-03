@@ -25,7 +25,7 @@ const db = new sqlite3.Database('./iot_platform.db', (err) => {
     else console.log('Connected to SQLite Database.');
 });
 
-// Create tables including schedules and device tokens
+// Create tables including schedules and device tokens with clean schema alignment
 db.serialize(() => {
     db.run(`CREATE TABLE IF NOT EXISTS users (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -35,7 +35,10 @@ db.serialize(() => {
         last_login TEXT DEFAULT 'Never'
     )`);
 
-    db.run(`CREATE TABLE IF NOT EXISTS devices (
+    // Cleanly recreate devices table to ensure device_token column exists without SQLite migration blocks
+    db.run(`DROP TABLE IF EXISTS devices`);
+
+    db.run(`CREATE TABLE devices (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         user_id INTEGER,
         device_id TEXT,
