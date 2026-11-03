@@ -6,7 +6,7 @@
     <title>Multi-Tenant IoT Platform</title>
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body class="bg-slate-900 text-slate-100 min-h-screen p-6 font-sans scroll-smooth">
+<body class="bg-slate-900 text-slate-100 min-h-screen p-6 font-sans">
     <div class="max-w-5xl mx-auto space-y-6">
 
         <!-- Header -->
@@ -15,11 +15,39 @@
                 <h1 class="text-2xl font-bold text-indigo-400">⚡ IoT Multi-Tenant Platform</h1>
                 <p class="text-sm text-slate-400">Sensors, Actuators & Timed Automation</p>
             </div>
-            <!-- Clickable Logged In Badge -->
-            <div id="user-status" onclick="scrollToAccount()" class="text-sm font-medium text-indigo-300 bg-slate-800 border border-slate-700 px-3 py-1.5 rounded-lg cursor-pointer hover:bg-slate-700 transition shadow">
+            <!-- Clickable Logged In Badge to Open Modal -->
+            <div id="user-status" onclick="toggleAccountModal(true)" class="text-sm font-medium text-indigo-300 bg-slate-800 border border-slate-700 px-3 py-1.5 rounded-lg cursor-pointer hover:bg-slate-700 transition shadow">
                 👤 Logged In
             </div>
         </header>
+
+        <!-- Account Settings Modal (Hidden by default) -->
+        <div id="account-modal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
+            <div class="bg-slate-800 border border-slate-700 p-6 rounded-xl shadow-2xl max-w-lg w-full space-y-4 relative">
+                <div class="flex justify-between items-center border-b border-slate-700 pb-3">
+                    <h2 class="text-lg font-semibold text-indigo-400">👤 My Account Information & Credentials</h2>
+                    <button onclick="toggleAccountModal(false)" class="text-slate-400 hover:text-white text-xl font-bold">&times;</button>
+                </div>
+                <form id="accountForm" onsubmit="updateAccount(event)" class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-slate-300 mb-1">Username</label>
+                        <input type="text" id="account-username" required class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-slate-100 focus:outline-none focus:border-indigo-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-300 mb-1">Current Password <span class="text-xs text-slate-500">(to change password)</span></label>
+                        <input type="password" id="current-password" placeholder="••••••••" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-slate-100 focus:outline-none focus:border-indigo-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-300 mb-1">New Password <span class="text-xs text-slate-500">(optional)</span></label>
+                        <input type="password" id="new-password" placeholder="••••••••" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-slate-100 focus:outline-none focus:border-indigo-500">
+                    </div>
+                    <div class="flex justify-end gap-3 pt-2">
+                        <button type="button" onclick="toggleAccountModal(false)" class="bg-slate-700 hover:bg-slate-600 text-slate-200 font-semibold px-4 py-2 rounded-lg transition text-sm">Cancel</button>
+                        <button type="submit" class="bg-indigo-600 hover:bg-indigo-500 text-white font-semibold px-5 py-2 rounded-lg transition text-sm">Save Changes</button>
+                    </div>
+                </form>
+            </div>
+        </div>
 
         <!-- Auth Section -->
         <div id="auth-card" class="bg-slate-800 p-6 rounded-xl border border-slate-700 shadow-xl max-w-md mx-auto">
@@ -44,28 +72,6 @@
 
         <!-- Main Dashboard Section -->
         <div id="dashboard" class="hidden space-y-6">
-
-            <!-- Account Settings Card -->
-            <div id="account-section" class="bg-slate-800 p-6 rounded-xl border border-slate-700 shadow-xl">
-                <h2 class="text-lg font-semibold text-indigo-400 mb-4">👤 My Account Information & Credentials</h2>
-                <form id="accountForm" onsubmit="updateAccount(event)" class="grid grid-cols-1 sm:grid-cols-3 gap-4 items-end">
-                    <div>
-                        <label class="block text-sm font-medium text-slate-300 mb-1">Username</label>
-                        <input type="text" id="account-username" required class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-slate-100 focus:outline-none focus:border-indigo-500">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-slate-300 mb-1">Current Password <span class="text-xs text-slate-500">(to change password)</span></label>
-                        <input type="password" id="current-password" placeholder="••••••••" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-slate-100 focus:outline-none focus:border-indigo-500">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-slate-300 mb-1">New Password <span class="text-xs text-slate-500">(optional)</span></label>
-                        <input type="password" id="new-password" placeholder="••••••••" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-slate-100 focus:outline-none focus:border-indigo-500">
-                    </div>
-                    <div class="sm:col-span-3 flex justify-end">
-                        <button type="submit" class="bg-indigo-600 hover:bg-indigo-500 text-white font-semibold px-6 py-2 rounded-lg transition text-sm">Save Account Changes</button>
-                    </div>
-                </form>
-            </div>
             
             <!-- Provision Device Card -->
             <div id="provision-card" class="bg-slate-800 p-6 rounded-xl border border-slate-700 shadow-xl">
@@ -161,12 +167,13 @@
             consoleDiv.scrollTop = consoleDiv.scrollHeight;
         }
 
-        function scrollToAccount() {
-            const accountCard = document.getElementById('account-section');
-            if (accountCard) {
-                accountCard.scrollIntoView({ behavior: 'smooth' });
-                accountCard.classList.add('ring-2', 'ring-indigo-500');
-                setTimeout(() => accountCard.classList.remove('ring-2', 'ring-indigo-500'), 1500);
+        function toggleAccountModal(show) {
+            const modal = document.getElementById('account-modal');
+            if (show) {
+                modal.classList.remove('hidden');
+                loadAccountInfo();
+            } else {
+                modal.classList.add('hidden');
             }
         }
 
@@ -265,6 +272,7 @@
                 if (!res.ok) throw new Error(data.error);
 
                 alert(data.message);
+                toggleAccountModal(false);
                 document.getElementById('current-password').value = '';
                 document.getElementById('new-password').value = '';
                 if (new_password) {
