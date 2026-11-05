@@ -15,8 +15,8 @@
                 <h1 class="text-2xl font-bold text-indigo-400">⚡ IoT Multi-Tenant Platform</h1>
                 <p class="text-sm text-slate-400">Sensors, Actuators & Timed Automation</p>
             </div>
-            <!-- Clickable Logged In Badge to Open Modal -->
-            <div id="user-status" onclick="toggleAccountModal(true)" class="text-sm font-medium text-indigo-300 bg-slate-800 border border-slate-700 px-3 py-1.5 rounded-lg cursor-pointer hover:bg-slate-700 transition shadow">
+            <!-- Clickable Logged In Badge to Open Modal (HIDDEN BY DEFAULT) -->
+            <div id="user-status" onclick="toggleAccountModal(true)" class="hidden text-sm font-medium text-indigo-300 bg-slate-800 border border-slate-700 px-3 py-1.5 rounded-lg cursor-pointer hover:bg-slate-700 transition shadow">
                 👤 Logged In
             </div>
         </header>
@@ -497,8 +497,12 @@
             document.getElementById('auth-card').classList.add('hidden');
             document.getElementById('dashboard').classList.remove('hidden');
             
+            // Reveal account badge in header only when dashboard initializes
+            const userStatusEl = document.getElementById('user-status');
+            userStatusEl.classList.remove('hidden');
+            
             const role = getUserRole();
-            document.getElementById('user-status').innerText = role === 'admin' ? '👤 Admin Account' : '👤 Logged In';
+            userStatusEl.innerText = role === 'admin' ? '👤 Admin Account' : '👤 Logged In';
             
             loadAccountInfo();
             initWebSocket();
