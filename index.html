@@ -509,7 +509,8 @@
             loadDevices();
         }
 
-        if (token) initDashboard();
+        // Remove token check on startup so the login screen always shows fresh
+     localStorage.removeItem('iot_token');
     </script>
 </body>
 </html>
