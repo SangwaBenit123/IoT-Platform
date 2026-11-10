@@ -3,7 +3,7 @@ const http = require('http');
 const WebSocket = require('ws');
 const mqtt = require('mqtt');
 const cors = require('cors');
-const sqlite3 = require('sqlite3').verbose();
+const { createClient } = require('@libsql/client');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const path = require('path');
@@ -19,43 +19,48 @@ const wss = new WebSocket.Server({ server });
 
 const JWT_SECRET = 'super_secret_iot_key_123';
 
-// Initialize SQLite Database
-const db = new sqlite3.Database('./iot_platform.db', (err) => {
-    if (err) console.error('Database opening error: ', err.message);
-    else console.log('Connected to SQLite Database.');
+// Initialize Turso Cloud Database Client
+const db = createClient({
+    url: process.env.TURSO_DATABASE_URL,
+    authToken: process.env.TURSO_AUTH_TOKEN,
 });
 
-// Create tables including schedules and device tokens with clean schema alignment
-db.serialize(() => {
-    db.run(`CREATE TABLE IF NOT EXISTS users (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        username TEXT UNIQUE,
-        password TEXT,
-        role TEXT DEFAULT 'user',
-        last_login TEXT DEFAULT 'Never'
-    )`);
+// Create tables asynchronously on startup
+async function initDB() {
+    try {
+        await db.execute(`CREATE TABLE IF NOT EXISTS users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT UNIQUE,
+            password TEXT,
+            role TEXT DEFAULT 'user',
+            last_login TEXT DEFAULT 'Never'
+        )`);
 
-    // Cleanly recreate devices table to ensure device_token column exists without SQLite migration blocks
-    db.run(`DROP TABLE IF EXISTS devices`);
+        await db.execute(`DROP TABLE IF EXISTS devices`);
 
-    db.run(`CREATE TABLE devices (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        user_id INTEGER,
-        device_id TEXT,
-        name TEXT,
-        device_token TEXT,
-        FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
-    )`);
+        await db.execute(`CREATE TABLE devices (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER,
+            device_id TEXT,
+            name TEXT,
+            device_token TEXT,
+            FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+        )`);
 
-    db.run(`CREATE TABLE IF NOT EXISTS schedules (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        user_id INTEGER,
-        device_id TEXT,
-        action TEXT,
-        execute_at TEXT,
-        FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
-    )`);
-});
+        await db.execute(`CREATE TABLE IF NOT EXISTS schedules (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER,
+            device_id TEXT,
+            action TEXT,
+            execute_at TEXT,
+            FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+        )`);
+        console.log('Connected to Turso DB successfully and initialized tables!');
+    } catch (err) {
+        console.error('Database initialization error:', err.message);
+    }
+}
+initDB();
 
 // Connect to MQTT Broker
 const MQTT_BROKER = 'mqtt://broker.hivemq.com';
@@ -86,25 +91,37 @@ app.post('/api/register', async (req, res) => {
 
     try {
         const hashedPassword = await bcrypt.hash(password, 10);
-        db.run(`INSERT INTO users (username, password, role) VALUES (?, ?, 'user')`, [username, hashedPassword], function(err) {
-            if (err) return res.status(400).json({ error: 'Username already exists' });
-            res.json({ message: 'User registered successfully', userId: this.lastID });
+        const result = await db.execute({
+            sql: `INSERT INTO users (username, password, role) VALUES (?, ?, 'user')`,
+            args: [username, hashedPassword]
         });
+        res.json({ message: 'User registered successfully', userId: Number(result.lastInsertRowid) });
     } catch (err) {
+        if (err.message && err.message.includes('UNIQUE constraint failed')) {
+            return res.status(400).json({ error: 'Username already exists' });
+        }
         res.status(500).json({ error: 'Server error' });
     }
 });
 
-app.post('/api/login', (req, res) => {
+app.post('/api/login', async (req, res) => {
     const { username, password } = req.body;
-    db.get(`SELECT * FROM users WHERE username = ?`, [username], async (err, user) => {
-        if (err || !user) return res.status(400).json({ error: 'Invalid username or password' });
+    try {
+        const rs = await db.execute({
+            sql: `SELECT * FROM users WHERE username = ?`,
+            args: [username]
+        });
+        const user = rs.rows[0];
+        if (!user) return res.status(400).json({ error: 'Invalid username or password' });
 
         const validPassword = await bcrypt.compare(password, user.password);
         if (!validPassword) return res.status(400).json({ error: 'Invalid username or password' });
 
         const currentTime = new Date().toLocaleString();
-        db.run(`UPDATE users SET last_login = ? WHERE id = ?`, [currentTime, user.id]);
+        await db.execute({
+            sql: `UPDATE users SET last_login = ? WHERE id = ?`,
+            args: [currentTime, user.id]
+        });
 
         const token = jwt.sign(
             { id: user.id, username: user.username, role: user.role || 'user' }, 
@@ -112,7 +129,9 @@ app.post('/api/login', (req, res) => {
             { expiresIn: '24h' }
         );
         res.json({ message: 'Login successful', token, role: user.role || 'user' });
-    });
+    } catch (err) {
+        res.status(500).json({ error: 'Server error' });
+    }
 });
 
 function verifyToken(req, res, next) {
@@ -129,18 +148,30 @@ function verifyToken(req, res, next) {
 
 // ================= ACCOUNT MANAGEMENT ROUTES =================
 
-app.get('/api/account', verifyToken, (req, res) => {
-    db.get(`SELECT id, username, role, last_login FROM users WHERE id = ?`, [req.user.id], (err, user) => {
-        if (err || !user) return res.status(404).json({ error: 'User not found' });
+app.get('/api/account', verifyToken, async (req, res) => {
+    try {
+        const rs = await db.execute({
+            sql: `SELECT id, username, role, last_login FROM users WHERE id = ?`,
+            args: [req.user.id]
+        });
+        const user = rs.rows[0];
+        if (!user) return res.status(404).json({ error: 'User not found' });
         res.json(user);
-    });
+    } catch (err) {
+        res.status(500).json({ error: 'Database error' });
+    }
 });
 
 app.put('/api/account', verifyToken, async (req, res) => {
     const { username, current_password, new_password } = req.body;
 
-    db.get(`SELECT * FROM users WHERE id = ?`, [req.user.id], async (err, user) => {
-        if (err || !user) return res.status(404).json({ error: 'User not found' });
+    try {
+        const rs = await db.execute({
+            sql: `SELECT * FROM users WHERE id = ?`,
+            args: [req.user.id]
+        });
+        const user = rs.rows[0];
+        if (!user) return res.status(404).json({ error: 'User not found' });
 
         let updatedUsername = username ? username.trim() : user.username;
         let updatedPasswordHash = user.password;
@@ -156,143 +187,179 @@ app.put('/api/account', verifyToken, async (req, res) => {
             updatedPasswordHash = await bcrypt.hash(new_password, 10);
         }
 
-        db.run(`UPDATE users SET username = ?, password = ? WHERE id = ?`, [updatedUsername, updatedPasswordHash, req.user.id], function(err) {
-            if (err) {
-                return res.status(400).json({ error: 'Username already taken or database error.' });
-            }
-            res.json({ message: 'Account updated successfully.' });
+        await db.execute({
+            sql: `UPDATE users SET username = ?, password = ? WHERE id = ?`,
+            args: [updatedUsername, updatedPasswordHash, req.user.id]
         });
-    });
+        res.json({ message: 'Account updated successfully.' });
+    } catch (err) {
+        res.status(400).json({ error: 'Username already taken or database error.' });
+    }
 });
 
 // ================= DEVICE PROVISIONING ROUTES =================
 
-app.post('/api/devices', verifyToken, (req, res) => {
+app.post('/api/devices', verifyToken, async (req, res) => {
     if (req.user.role === 'admin') {
         return res.status(403).json({ error: 'Administrators do not register personal devices.' });
     }
     const { device_id, name } = req.body;
     if (!device_id || !name) return res.status(400).json({ error: 'Device ID and name are required' });
 
-    db.get(`SELECT * FROM devices WHERE user_id = ? AND device_id = ?`, [req.user.id, device_id], (err, existing) => {
-        if (existing) {
+    try {
+        const checkRs = await db.execute({
+            sql: `SELECT * FROM devices WHERE user_id = ? AND device_id = ?`,
+            args: [req.user.id, device_id]
+        });
+        if (checkRs.rows.length > 0) {
             return res.status(400).json({ error: 'You have already registered this Device ID.' });
         }
 
         const device_token = crypto.randomBytes(16).toString('hex');
 
-        db.run(`INSERT INTO devices (user_id, device_id, name, device_token) VALUES (?, ?, ?, ?)`, 
-            [req.user.id, device_id, name, device_token], function(err) {
-            if (err) return res.status(500).json({ error: 'Database error while saving device' });
-            res.json({ message: 'Device added successfully', device_token, id: this.lastID });
+        const insertRs = await db.execute({
+            sql: `INSERT INTO devices (user_id, device_id, name, device_token) VALUES (?, ?, ?, ?)`,
+            args: [req.user.id, device_id, name, device_token]
         });
-    });
+        res.json({ message: 'Device added successfully', device_token, id: Number(insertRs.lastInsertRowid) });
+    } catch (err) {
+        res.status(500).json({ error: 'Database error while saving device' });
+    }
 });
 
-app.get('/api/devices', verifyToken, (req, res) => {
-    db.all(`SELECT device_id, name, device_token FROM devices WHERE user_id = ?`, [req.user.id], (err, rows) => {
-        if (err) return res.status(500).json({ error: 'Database error' });
-        res.json(rows);
-    });
+app.get('/api/devices', verifyToken, async (req, res) => {
+    try {
+        const rs = await db.execute({
+            sql: `SELECT device_id, name, device_token FROM devices WHERE user_id = ?`,
+            args: [req.user.id]
+        });
+        res.json(rs.rows);
+    } catch (err) {
+        res.status(500).json({ error: 'Database error' });
+    }
 });
 
 // ================= SCHEDULE / TIMER ROUTES =================
 
-app.post('/api/schedules', verifyToken, (req, res) => {
+app.post('/api/schedules', verifyToken, async (req, res) => {
     const { device_id, action, execute_at } = req.body;
     if (!device_id || !action || !execute_at) return res.status(400).json({ error: 'Missing schedule parameters' });
 
-    let query = `SELECT * FROM devices WHERE device_id = ?`;
-    let params = [device_id];
-    if (req.user.role !== 'admin') {
-        query = `SELECT * FROM devices WHERE user_id = ? AND device_id = ?`;
-        params = [req.user.id, device_id];
-    }
+    try {
+        let query = `SELECT * FROM devices WHERE device_id = ?`;
+        let params = [device_id];
+        if (req.user.role !== 'admin') {
+            query = `SELECT * FROM devices WHERE user_id = ? AND device_id = ?`;
+            params = [req.user.id, device_id];
+        }
 
-    db.get(query, params, (err, device) => {
-        if (err || !device) return res.status(403).json({ error: 'Device not found or access denied' });
+        const devRs = await db.execute({ sql: query, args: params });
+        if (devRs.rows.length === 0) return res.status(403).json({ error: 'Device not found or access denied' });
 
-        db.run(`INSERT INTO schedules (user_id, device_id, action, execute_at) VALUES (?, ?, ?, ?)`, 
-            [req.user.id, device_id, action, execute_at], function(err) {
-            if (err) return res.status(500).json({ error: 'Failed to save schedule' });
-            res.json({ message: 'Schedule created successfully', id: this.lastID });
+        const schedRs = await db.execute({
+            sql: `INSERT INTO schedules (user_id, device_id, action, execute_at) VALUES (?, ?, ?, ?)`,
+            args: [req.user.id, device_id, action, execute_at]
         });
-    });
-});
-
-app.get('/api/schedules', verifyToken, (req, res) => {
-    let query = `SELECT * FROM schedules`;
-    let params = [];
-    if (req.user.role !== 'admin') {
-        query = `SELECT * FROM schedules WHERE user_id = ?`;
-        params = [req.user.id];
+        res.json({ message: 'Schedule created successfully', id: Number(schedRs.lastInsertRowid) });
+    } catch (err) {
+        res.status(500).json({ error: 'Failed to save schedule' });
     }
-    db.all(query, params, (err, rows) => {
-        if (err) return res.status(500).json({ error: 'Database error' });
-        res.json(rows);
-    });
 });
 
-app.delete('/api/schedules/:id', verifyToken, (req, res) => {
-    db.run(`DELETE FROM schedules WHERE id = ?`, [req.params.id], function(err) {
-        if (err) return res.status(500).json({ error: 'Failed to delete schedule' });
+app.get('/api/schedules', verifyToken, async (req, res) => {
+    try {
+        let query = `SELECT * FROM schedules`;
+        let params = [];
+        if (req.user.role !== 'admin') {
+            query = `SELECT * FROM schedules WHERE user_id = ?`;
+            params = [req.user.id];
+        }
+        const rs = await db.execute({ sql: query, args: params });
+        res.json(rs.rows);
+    } catch (err) {
+        res.status(500).json({ error: 'Database error' });
+    }
+});
+
+app.delete('/api/schedules/:id', verifyToken, async (req, res) => {
+    try {
+        await db.execute({
+            sql: `DELETE FROM schedules WHERE id = ?`,
+            args: [req.params.id]
+        });
         res.json({ message: 'Schedule removed' });
-    });
+    } catch (err) {
+        res.status(500).json({ error: 'Failed to delete schedule' });
+    }
 });
 
 // ================= ADMIN MANAGEMENT ROUTES =================
 
-app.get('/api/admin/users', verifyToken, (req, res) => {
+app.get('/api/admin/users', verifyToken, async (req, res) => {
     if (req.user.role !== 'admin') return res.status(403).json({ error: 'Access denied.' });
-    db.all(`SELECT id, username, role, last_login FROM users`, [], (err, rows) => {
-        if (err) return res.status(500).json({ error: 'Database error' });
-        res.json(rows);
-    });
+    try {
+        const rs = await db.execute(`SELECT id, username, role, last_login FROM users`);
+        res.json(rs.rows);
+    } catch (err) {
+        res.status(500).json({ error: 'Database error' });
+    }
 });
 
-app.delete('/api/admin/users/:id', verifyToken, (req, res) => {
+app.delete('/api/admin/users/:id', verifyToken, async (req, res) => {
     if (req.user.role !== 'admin') return res.status(403).json({ error: 'Access denied.' });
     const userIdToDelete = req.params.id;
     if (parseInt(userIdToDelete) === req.user.id) {
         return res.status(400).json({ error: 'Cannot delete your own active admin account.' });
     }
 
-    db.serialize(() => {
-        db.run(`DELETE FROM devices WHERE user_id = ?`, [userIdToDelete]);
-        db.run(`DELETE FROM schedules WHERE user_id = ?`, [userIdToDelete]);
-        db.run(`DELETE FROM users WHERE id = ?`, [userIdToDelete], function(err) {
-            if (err) return res.status(500).json({ error: 'Failed to delete user' });
-            res.json({ message: 'User deleted successfully' });
-        });
-    });
+    try {
+        await db.execute({ sql: `DELETE FROM devices WHERE user_id = ?`, args: [userIdToDelete] });
+        await db.execute({ sql: `DELETE FROM schedules WHERE user_id = ?`, args: [userIdToDelete] });
+        await db.execute({ sql: `DELETE FROM users WHERE id = ?`, args: [userIdToDelete] });
+        res.json({ message: 'User deleted successfully' });
+    } catch (err) {
+        res.status(500).json({ error: 'Failed to delete user' });
+    }
 });
 
-app.get('/api/admin/monitor', verifyToken, (req, res) => {
+app.get('/api/admin/monitor', verifyToken, async (req, res) => {
     if (req.user.role !== 'admin') return res.status(403).json({ error: 'Access denied.' });
-    db.all(`
-        SELECT users.username, devices.device_id, devices.name, devices.device_token 
-        FROM devices 
-        JOIN users ON users.id = devices.user_id
-    `, [], (err, rows) => {
-        if (err) return res.status(500).json({ error: 'Database error' });
-        res.json(rows);
-    });
+    try {
+        const rs = await db.execute(`
+            SELECT users.username, devices.device_id, devices.name, devices.device_token 
+            FROM devices 
+            JOIN users ON users.id = devices.user_id
+        `);
+        res.json(rs.rows);
+    } catch (err) {
+        res.status(500).json({ error: 'Database error' });
+    }
 });
 
 // Background Worker to Check and Trigger Schedules every 10 seconds
-setInterval(() => {
+setInterval(async () => {
     const now = new Date().toISOString().slice(0, 16);
-    db.all(`SELECT * FROM schedules WHERE execute_at <= ?`, [now], (err, rows) => {
-        if (err || !rows) return;
+    try {
+        const rs = await db.execute({
+            sql: `SELECT * FROM schedules WHERE execute_at <= ?`,
+            args: [now]
+        });
+        const rows = rs.rows;
+        if (!rows || rows.length === 0) return;
 
-        rows.forEach(sched => {
+        for (const sched of rows) {
             const controlTopic = `myiot/${sched.device_id}/control`;
             mqttClient.publish(controlTopic, sched.action);
             console.log(`⏱️ Automated Timer Triggered: Sent ${sched.action} to ${sched.device_id}`);
 
-            db.run(`DELETE FROM schedules WHERE id = ?`, [sched.id]);
-        });
-    });
+            await db.execute({
+                sql: `DELETE FROM schedules WHERE id = ?`,
+                args: [sched.id]
+            });
+        }
+    } catch (err) {
+        console.error('Background worker error:', err);
+    }
 }, 10000);
 
 // ================= WEBSOCKET SERVER =================
@@ -301,7 +368,7 @@ wss.on('connection', (ws) => {
         try {
             const msg = JSON.parse(message);
             if (msg.token && msg.device_id && msg.state) {
-                jwt.verify(msg.token, JWT_SECRET, (err, user) => {
+                jwt.verify(msg.token, JWT_SECRET, async (err, user) => {
                     if (err) return;
 
                     let query = `SELECT * FROM devices WHERE device_id = ?`;
@@ -312,12 +379,14 @@ wss.on('connection', (ws) => {
                         params = [user.id, msg.device_id];
                     }
 
-                    db.get(query, params, (err, device) => {
-                        if (err || !device) return ws.send(JSON.stringify({ error: 'Access denied' }));
+                    try {
+                        const devRs = await db.execute({ sql: query, args: params });
+                        const device = devRs.rows[0];
+                        if (!device) return ws.send(JSON.stringify({ error: 'Access denied' }));
 
                         const controlTopic = `myiot/${msg.device_id}/control`;
                         mqttClient.publish(controlTopic, msg.state);
-                    });
+                    } catch (err) {}
                 });
             }
         } catch (err) {}
