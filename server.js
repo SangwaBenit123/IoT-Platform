@@ -25,7 +25,7 @@ const db = createClient({
     authToken: process.env.TURSO_AUTH_TOKEN,
 });
 
-// Create tables asynchronously on startup
+// Create tables asynchronously on startup with Systems & Projects support
 async function initDB() {
     try {
         await db.execute(`CREATE TABLE IF NOT EXISTS users (
@@ -36,15 +36,26 @@ async function initDB() {
             last_login TEXT DEFAULT 'Never'
         )`);
 
+        // Systems / Projects table (Blynk-style template tokens)
+        await db.execute(`CREATE TABLE IF NOT EXISTS systems (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER,
+            system_name TEXT,
+            system_token TEXT UNIQUE,
+            hardware_type TEXT,
+            FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+        )`);
+
         await db.execute(`DROP TABLE IF EXISTS devices`);
 
         await db.execute(`CREATE TABLE devices (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             user_id INTEGER,
+            system_id INTEGER,
             device_id TEXT,
             name TEXT,
-            device_token TEXT,
-            FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+            FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE,
+            FOREIGN KEY(system_id) REFERENCES systems(id) ON DELETE CASCADE
         )`);
 
         await db.execute(`CREATE TABLE IF NOT EXISTS schedules (
@@ -55,7 +66,7 @@ async function initDB() {
             execute_at TEXT,
             FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
         )`);
-        console.log('Connected to Turso DB successfully and initialized tables!');
+        console.log('Connected to Turso DB successfully and initialized tables with systems support!');
     } catch (err) {
         console.error('Database initialization error:', err.message);
     }
@@ -197,31 +208,68 @@ app.put('/api/account', verifyToken, async (req, res) => {
     }
 });
 
+// ================= SYSTEM / PROJECT ROUTES (Blynk Style) =================
+
+app.post('/api/systems', verifyToken, async (req, res) => {
+    const { system_name, hardware_type } = req.body;
+    if (!system_name) return res.status(400).json({ error: 'System name is required' });
+
+    try {
+        const system_token = crypto.randomBytes(16).toString('hex');
+        const rs = await db.execute({
+            sql: `INSERT INTO systems (user_id, system_name, system_token, hardware_type) VALUES (?, ?, ?, ?)`,
+            args: [req.user.id, system_name, system_token, hardware_type || 'ESP32']
+        });
+        res.json({ message: 'System created successfully', system_token, id: Number(rs.lastInsertRowid) });
+    } catch (err) {
+        res.status(500).json({ error: 'Failed to create system' });
+    }
+});
+
+app.get('/api/systems', verifyToken, async (req, res) => {
+    try {
+        const rs = await db.execute({
+            sql: `SELECT * FROM systems WHERE user_id = ?`,
+            args: [req.user.id]
+        });
+        res.json(rs.rows);
+    } catch (err) {
+        res.status(500).json({ error: 'Database error' });
+    }
+});
+
 // ================= DEVICE PROVISIONING ROUTES =================
 
 app.post('/api/devices', verifyToken, async (req, res) => {
     if (req.user.role === 'admin') {
         return res.status(403).json({ error: 'Administrators do not register personal devices.' });
     }
-    const { device_id, name } = req.body;
-    if (!device_id || !name) return res.status(400).json({ error: 'Device ID and name are required' });
+    const { system_id, device_id, name } = req.body;
+    if (!system_id || !device_id || !name) return res.status(400).json({ error: 'System ID, Device ID, and name are required' });
 
     try {
-        const checkRs = await db.execute({
-            sql: `SELECT * FROM devices WHERE user_id = ? AND device_id = ?`,
-            args: [req.user.id, device_id]
+        // Verify system ownership
+        const sysCheck = await db.execute({
+            sql: `SELECT * FROM systems WHERE id = ? AND user_id = ?`,
+            args: [system_id, req.user.id]
         });
-        if (checkRs.rows.length > 0) {
-            return res.status(400).json({ error: 'You have already registered this Device ID.' });
+        if (sysCheck.rows.length === 0) {
+            return res.status(403).json({ error: 'System not found or access denied.' });
         }
 
-        const device_token = crypto.randomBytes(16).toString('hex');
+        const checkRs = await db.execute({
+            sql: `SELECT * FROM devices WHERE system_id = ? AND device_id = ?`,
+            args: [system_id, device_id]
+        });
+        if (checkRs.rows.length > 0) {
+            return res.status(400).json({ error: 'Device ID already registered in this system.' });
+        }
 
         const insertRs = await db.execute({
-            sql: `INSERT INTO devices (user_id, device_id, name, device_token) VALUES (?, ?, ?, ?)`,
-            args: [req.user.id, device_id, name, device_token]
+            sql: `INSERT INTO devices (user_id, system_id, device_id, name) VALUES (?, ?, ?, ?)`,
+            args: [req.user.id, system_id, device_id, name]
         });
-        res.json({ message: 'Device added successfully', device_token, id: Number(insertRs.lastInsertRowid) });
+        res.json({ message: 'Device added successfully to system', id: Number(insertRs.lastInsertRowid) });
     } catch (err) {
         res.status(500).json({ error: 'Database error while saving device' });
     }
@@ -230,7 +278,10 @@ app.post('/api/devices', verifyToken, async (req, res) => {
 app.get('/api/devices', verifyToken, async (req, res) => {
     try {
         const rs = await db.execute({
-            sql: `SELECT device_id, name, device_token FROM devices WHERE user_id = ?`,
+            sql: `SELECT devices.id, devices.system_id, devices.device_id, devices.name, systems.system_name, systems.system_token 
+                  FROM devices 
+                  JOIN systems ON devices.system_id = systems.id 
+                  WHERE devices.user_id = ?`,
             args: [req.user.id]
         });
         res.json(rs.rows);
@@ -313,6 +364,7 @@ app.delete('/api/admin/users/:id', verifyToken, async (req, res) => {
     }
 
     try {
+        await db.execute({ sql: `DELETE FROM systems WHERE user_id = ?`, args: [userIdToDelete] });
         await db.execute({ sql: `DELETE FROM devices WHERE user_id = ?`, args: [userIdToDelete] });
         await db.execute({ sql: `DELETE FROM schedules WHERE user_id = ?`, args: [userIdToDelete] });
         await db.execute({ sql: `DELETE FROM users WHERE id = ?`, args: [userIdToDelete] });
@@ -326,9 +378,10 @@ app.get('/api/admin/monitor', verifyToken, async (req, res) => {
     if (req.user.role !== 'admin') return res.status(403).json({ error: 'Access denied.' });
     try {
         const rs = await db.execute(`
-            SELECT users.username, devices.device_id, devices.name, devices.device_token 
+            SELECT users.username, systems.system_name, devices.device_id, devices.name, systems.system_token 
             FROM devices 
             JOIN users ON users.id = devices.user_id
+            JOIN systems ON systems.id = devices.system_id
         `);
         res.json(rs.rows);
     } catch (err) {
@@ -362,31 +415,22 @@ setInterval(async () => {
     }
 }, 10000);
 
-// ================= WEBSOCKET SERVER =================
+// ================= WEBSOCKET SERVER (System Token Auth) =================
 wss.on('connection', (ws) => {
     ws.on('message', (message) => {
         try {
             const msg = JSON.parse(message);
-            if (msg.token && msg.device_id && msg.state) {
-                jwt.verify(msg.token, JWT_SECRET, async (err, user) => {
-                    if (err) return;
+            // Accepts system_token instead of individual device tokens
+            if (msg.system_token && msg.device_id && msg.state) {
+                db.execute({
+                    sql: `SELECT * FROM systems WHERE system_token = ?`,
+                    args: [msg.system_token]
+                }).then(rs => {
+                    const system = rs.rows[0];
+                    if (!system) return ws.send(JSON.stringify({ error: 'Invalid System Auth Token' }));
 
-                    let query = `SELECT * FROM devices WHERE device_id = ?`;
-                    let params = [msg.device_id];
-
-                    if (user.role !== 'admin') {
-                        query = `SELECT * FROM devices WHERE user_id = ? AND device_id = ?`;
-                        params = [user.id, msg.device_id];
-                    }
-
-                    try {
-                        const devRs = await db.execute({ sql: query, args: params });
-                        const device = devRs.rows[0];
-                        if (!device) return ws.send(JSON.stringify({ error: 'Access denied' }));
-
-                        const controlTopic = `myiot/${msg.device_id}/control`;
-                        mqttClient.publish(controlTopic, msg.state);
-                    } catch (err) {}
+                    const controlTopic = `myiot/${msg.device_id}/control`;
+                    mqttClient.publish(controlTopic, msg.state);
                 });
             }
         } catch (err) {}
