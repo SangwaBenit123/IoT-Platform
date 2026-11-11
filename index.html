@@ -1,597 +1,583 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Multi-Tenant IoT Platform</title>
-    <!-- Stable Tailwind CSS Stylesheet Link (Prevents CDN blocking issues) -->
-    <link rel="stylesheet" href="https://unpkg.com/tailwindcss@2.2.19/dist/tailwind.min.css" />
-</head>
-<body class="bg-slate-900 text-slate-100 min-h-screen p-6 font-sans">
-    <div class="max-w-5xl mx-auto space-y-6">
+    <!-- Header -->
+    <header class="flex justify-between items-center border-b border-slate-800 pb-4">
+        <div>
+            <h1 class="text-2xl font-bold text-indigo-400">⚡ IoT Multi-Tenant Platform</h1>
+            <p class="text-sm text-slate-400">Multi-System Projects & Timed Automation</p>
+        </div>
+        <!-- Clickable Logged In Badge to Open Modal (HIDDEN BY DEFAULT) -->
+        <div id="user-status" onclick="toggleAccountModal(true)" class="hidden text-sm font-semibold text-indigo-300 bg-slate-800 border border-slate-700 px-3 py-1.5 rounded-lg cursor-pointer hover:bg-slate-700 transition shadow">
+            👤 Logged In
+        </div>
+    </header>
 
-        <!-- Header -->
-        <header class="flex justify-between items-center border-b border-slate-800 pb-4">
-            <div>
-                <h1 class="text-2xl font-bold text-indigo-400">⚡ IoT Multi-Tenant Platform</h1>
-                <p class="text-sm text-slate-400">Multi-System Projects & Timed Automation</p>
+    <!-- Account Settings Modal (Hidden by default) -->
+    <div id="account-modal" class="fixed inset-0 bg-slate-950/90 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
+        <div class="bg-slate-900 border border-slate-700 p-6 rounded-xl shadow-2xl max-w-lg w-full space-y-4 relative">
+            <div class="flex justify-between items-center border-b border-slate-800 pb-3">
+                <h2 class="text-lg font-semibold text-indigo-400">👤 My Account Information & Credentials</h2>
+                <button onclick="toggleAccountModal(false)" class="text-slate-400 hover:text-white text-xl font-bold">&times;</button>
             </div>
-            <!-- Clickable Logged In Badge to Open Modal (HIDDEN BY DEFAULT) -->
-            <div id="user-status" onclick="toggleAccountModal(true)" class="hidden text-sm font-medium text-indigo-300 bg-slate-800 border border-slate-700 px-3 py-1.5 rounded-lg cursor-pointer hover:bg-slate-700 transition shadow">
-                👤 Logged In
-            </div>
-        </header>
-
-        <!-- Account Settings Modal (Hidden by default) -->
-        <div id="account-modal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
-            <div class="bg-slate-800 border border-slate-700 p-6 rounded-xl shadow-2xl max-w-lg w-full space-y-4 relative">
-                <div class="flex justify-between items-center border-b border-slate-700 pb-3">
-                    <h2 class="text-lg font-semibold text-indigo-400">👤 My Account Information & Credentials</h2>
-                    <button onclick="toggleAccountModal(false)" class="text-slate-400 hover:text-white text-xl font-bold">&times;</button>
+            <form id="accountForm" onsubmit="updateAccount(event)" class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-slate-300 mb-1">Username</label>
+                    <input type="text" id="account-username" required class="w-full rounded-lg p-2.5 text-slate-100 focus:outline-none focus:border-indigo-500">
                 </div>
-                <form id="accountForm" onsubmit="updateAccount(event)" class="space-y-4">
-                    <div>
-                        <label class="block text-sm font-medium text-slate-300 mb-1">Username</label>
-                        <input type="text" id="account-username" required class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-slate-100 focus:outline-none focus:border-indigo-500">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-slate-300 mb-1">Current Password <span class="text-xs text-slate-500">(to change password)</span></label>
-                        <input type="password" id="current-password" placeholder="••••••••" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-slate-100 focus:outline-none focus:border-indigo-500">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-slate-300 mb-1">New Password <span class="text-xs text-slate-500">(optional)</span></label>
-                        <input type="password" id="new-password" placeholder="••••••••" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-slate-100 focus:outline-none focus:border-indigo-500">
-                    </div>
-                    <div class="flex justify-end gap-3 pt-2">
-                        <button type="button" onclick="toggleAccountModal(false)" class="bg-slate-700 hover:bg-slate-600 text-slate-200 font-semibold px-4 py-2 rounded-lg transition text-sm">Cancel</button>
-                        <button type="submit" class="bg-indigo-600 hover:bg-indigo-500 text-white font-semibold px-5 py-2 rounded-lg transition text-sm">Save Changes</button>
-                    </div>
-                </form>
+                <div>
+                    <label class="block text-sm font-medium text-slate-300 mb-1">Current Password <span class="text-xs text-slate-500">(to change password)</span></label>
+                    <input type="password" id="current-password" placeholder="••••••••" class="w-full rounded-lg p-2.5 text-slate-100 focus:outline-none focus:border-indigo-500">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-300 mb-1">New Password <span class="text-xs text-slate-500">(optional)</span></label>
+                    <input type="password" id="new-password" placeholder="••••••••" class="w-full rounded-lg p-2.5 text-slate-100 focus:outline-none focus:border-indigo-500">
+                </div>
+                <div class="flex justify-end gap-3 pt-2">
+                    <button type="button" onclick="toggleAccountModal(false)" class="bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-600 font-semibold px-4 py-2 rounded-lg transition text-sm">Cancel</button>
+                    <button type="submit" class="bg-indigo-600 hover:bg-indigo-500 text-white font-bold px-5 py-2 rounded-lg shadow transition text-sm">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Auth Section -->
+    <div id="auth-card" class="bg-slate-900 p-6 rounded-xl border border-slate-800 shadow-2xl max-w-md mx-auto">
+        <div class="flex border-b border-slate-800 mb-4">
+            <button id="tab-login" onclick="switchAuthTab('login')" class="flex-1 py-2 font-bold text-indigo-400 border-b-2 border-indigo-500">Login</button>
+            <button id="tab-register" onclick="switchAuthTab('register')" class="flex-1 py-2 font-bold text-slate-400 hover:text-slate-200">Register</button>
+        </div>
+
+        <form id="auth-form" onsubmit="handleAuth(event)" class="space-y-4">
+            <div>
+                <label class="block text-sm font-medium text-slate-300 mb-1">Username</label>
+                <input type="text" id="auth-username" required class="w-full rounded-lg p-2.5 text-slate-100 focus:outline-none focus:border-indigo-500">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-slate-300 mb-1">Password</label>
+                <input type="password" id="auth-password" required class="w-full rounded-lg p-2.5 text-slate-100 focus:outline-none focus:border-indigo-500">
+            </div>
+            <button type="submit" id="auth-btn" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-2.5 rounded-lg shadow transition">Login</button>
+            <p id="auth-error" class="text-rose-400 text-xs hidden font-semibold"></p>
+        </form>
+    </div>
+
+    <!-- Main Dashboard Section -->
+    <div id="dashboard" class="hidden space-y-6">
+        
+        <!-- Create System / Project Card -->
+        <div id="system-card" class="bg-slate-900 p-6 rounded-xl border border-slate-800 shadow-xl space-y-4">
+            <h2 class="text-lg font-bold text-indigo-400">🏗️ Create IoT System / Project</h2>
+            <form onsubmit="createSystem(event)" class="flex flex-col sm:flex-row gap-4">
+                <input type="text" id="system-name" placeholder="System Name (e.g. Smart Greenhouse)" required class="flex-1 rounded-lg p-2.5 text-slate-100 focus:outline-none focus:border-indigo-500">
+                <select id="hardware-type" class="rounded-lg p-2.5 text-slate-100">
+                    <option value="ESP32">ESP32</option>
+                    <option value="ESP8266">ESP8266</option>
+                    <option value="Arduino">Arduino</option>
+                </select>
+                <button type="submit" class="bg-indigo-600 hover:bg-indigo-500 text-white font-bold px-6 py-2.5 rounded-lg shadow transition border border-indigo-500">Create System</button>
+            </form>
+
+            <!-- Systems List Display -->
+            <div class="pt-2">
+                <h3 class="text-sm font-semibold text-slate-300 mb-2">My Active Systems & Unique Auth Tokens:</h3>
+                <div id="systems-list" class="grid grid-cols-1 md:grid-cols-2 gap-3"></div>
             </div>
         </div>
 
-        <!-- Auth Section -->
-        <div id="auth-card" class="bg-slate-800 p-6 rounded-xl border border-slate-700 shadow-xl max-w-md mx-auto">
-            <div class="flex border-b border-slate-700 mb-4">
-                <button id="tab-login" onclick="switchAuthTab('login')" class="flex-1 py-2 font-semibold text-indigo-400 border-b-2 border-indigo-500">Login</button>
-                <button id="tab-register" onclick="switchAuthTab('register')" class="flex-1 py-2 font-semibold text-slate-400 hover:text-slate-200">Register</button>
-            </div>
-
-            <form id="auth-form" onsubmit="handleAuth(event)" class="space-y-4">
-                <div>
-                    <label class="block text-sm font-medium text-slate-300 mb-1">Username</label>
-                    <input type="text" id="auth-username" required class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-slate-100 focus:outline-none focus:border-indigo-500">
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-slate-300 mb-1">Password</label>
-                    <input type="password" id="auth-password" required class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-slate-100 focus:outline-none focus:border-indigo-500">
-                </div>
-                <button type="submit" id="auth-btn" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-semibold py-2.5 rounded-lg transition">Login</button>
-                <p id="auth-error" class="text-red-400 text-xs hidden"></p>
+        <!-- Provision Device Card -->
+        <div id="provision-card" class="bg-slate-900 p-6 rounded-xl border border-slate-800 shadow-xl space-y-4">
+            <h2 class="text-lg font-bold text-emerald-400">➕ Register Device or Sensor to System</h2>
+            <form onsubmit="registerDevice(event)" class="grid grid-cols-1 sm:grid-cols-4 gap-3">
+                <select id="device-system-id" required class="rounded-lg p-2.5 text-slate-100">
+                    <option value="">Select System...</option>
+                </select>
+                <input type="text" id="new-device-id" placeholder="Device ID (e.g. temp_sensor_1)" required class="rounded-lg p-2.5 text-slate-100 focus:outline-none focus:border-emerald-500">
+                <input type="text" id="new-device-name" placeholder="Name (e.g. Greenhouse Sensor)" required class="rounded-lg p-2.5 text-slate-100 focus:outline-none focus:border-emerald-500">
+                <button type="submit" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-6 py-2.5 rounded-lg shadow transition border border-emerald-500">Add Device</button>
             </form>
         </div>
 
-        <!-- Main Dashboard Section -->
-        <div id="dashboard" class="hidden space-y-6">
-            
-            <!-- Create System / Project Card -->
-            <div id="system-card" class="bg-slate-800 p-6 rounded-xl border border-slate-700 shadow-xl space-y-4">
-                <h2 class="text-lg font-semibold text-indigo-400">🏗️ Create IoT System / Project</h2>
-                <form onsubmit="createSystem(event)" class="flex flex-col sm:flex-row gap-4">
-                    <input type="text" id="system-name" placeholder="System Name (e.g. Smart Greenhouse)" required class="flex-1 bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-slate-100 focus:outline-none focus:border-indigo-500">
-                    <select id="hardware-type" class="bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-slate-100">
-                        <option value="ESP32">ESP32</option>
-                        <option value="ESP8266">ESP8266</option>
-                        <option value="Arduino">Arduino</option>
-                    </select>
-                    <button type="submit" class="bg-indigo-600 hover:bg-indigo-500 text-white font-semibold px-6 py-2.5 rounded-lg transition">Create System</button>
-                </form>
-
-                <!-- Systems List Display -->
-                <div class="pt-2">
-                    <h3 class="text-sm font-medium text-slate-400 mb-2">My Active Systems & Unique Auth Tokens:</h3>
-                    <div id="systems-list" class="grid grid-cols-1 md:grid-cols-2 gap-3"></div>
-                </div>
-            </div>
-
-            <!-- Provision Device Card -->
-            <div id="provision-card" class="bg-slate-800 p-6 rounded-xl border border-slate-700 shadow-xl">
-                <h2 class="text-lg font-semibold text-slate-200 mb-4">➕ Register Device or Sensor to System</h2>
-                <form onsubmit="registerDevice(event)" class="grid grid-cols-1 sm:grid-cols-4 gap-3">
-                    <select id="device-system-id" required class="bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-slate-100">
-                        <option value="">Select System...</option>
-                    </select>
-                    <input type="text" id="new-device-id" placeholder="Device ID (e.g. temp_sensor_1)" required class="bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-slate-100 focus:outline-none focus:border-indigo-500">
-                    <input type="text" id="new-device-name" placeholder="Name (e.g. Greenhouse Sensor)" required class="bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-slate-100 focus:outline-none focus:border-indigo-500">
-                    <button type="submit" class="bg-emerald-600 hover:bg-emerald-500 text-white font-semibold px-6 py-2.5 rounded-lg transition">Add Device</button>
-                </form>
-            </div>
-
-            <!-- ADMIN ONLY: User Management -->
-            <div id="admin-users-section" class="hidden bg-slate-800 p-6 rounded-xl border border-slate-700 shadow-xl space-y-4">
-                <h2 class="text-lg font-semibold text-indigo-400">🛡️ User Accounts Management</h2>
-                <div class="overflow-x-auto">
-                    <table class="w-full text-left border-collapse text-sm">
-                        <thead>
-                            <tr class="border-b border-slate-700 text-slate-400">
-                                <th class="p-3">ID</th>
-                                <th class="p-3">Username</th>
-                                <th class="p-3">Role</th>
-                                <th class="p-3">Last Login</th>
-                                <th class="p-3 text-right">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody id="users-table-body"></tbody>
-                    </table>
-                </div>
-            </div>
-
-            <!-- Devices Grid / System Monitor -->
-            <div class="bg-slate-800 p-6 rounded-xl border border-slate-700 shadow-xl">
-                <div class="flex justify-between items-center mb-4">
-                    <h2 id="devices-title" class="text-lg font-semibold text-slate-200">📱 Hardware Telemetry & Actuators</h2>
-                    <button onclick="logout()" class="text-xs text-red-400 hover:underline">Log Out</button>
-                </div>
-                <div id="devices-list" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
-            </div>
-
-            <!-- Timed Schedules Section -->
-            <div class="bg-slate-800 p-6 rounded-xl border border-slate-700 shadow-xl space-y-4">
-                <h2 class="text-lg font-semibold text-amber-400">⏰ Actuator Scheduling & Timers</h2>
-                <form onsubmit="createSchedule(event)" class="grid grid-cols-1 sm:grid-cols-4 gap-3">
-                    <select id="sched-device-id" required class="bg-slate-900 border border-slate-700 rounded-lg p-2 text-sm text-slate-100">
-                        <option value="">Select Actuator...</option>
-                    </select>
-                    <select id="sched-action" required class="bg-slate-900 border border-slate-700 rounded-lg p-2 text-sm text-slate-100">
-                        <option value="ON">Turn ON</option>
-                        <option value="OFF">Turn OFF</option>
-                    </select>
-                    <input type="datetime-local" id="sched-time" required class="bg-slate-900 border border-slate-700 rounded-lg p-2 text-sm text-slate-100">
-                    <button type="submit" class="bg-amber-600 hover:bg-amber-500 text-white font-semibold py-2 rounded-lg text-sm transition">Set Timer</button>
-                </form>
-
-                <div class="overflow-x-auto pt-2">
-                    <table class="w-full text-left border-collapse text-xs">
-                        <thead>
-                            <tr class="border-b border-slate-700 text-slate-400">
-                                <th class="p-2">Device ID</th>
-                                <th class="p-2">Action</th>
-                                <th class="p-2">Scheduled Time</th>
-                                <th class="p-2 text-right">Cancel</th>
-                            </tr>
-                        </thead>
-                        <tbody id="schedules-table-body"></tbody>
-                    </table>
-                </div>
-            </div>
-
-            <!-- Activity Log -->
-            <div class="bg-slate-800 p-6 rounded-xl border border-slate-700 shadow-xl">
-                <h2 class="text-sm font-semibold text-slate-400 mb-2">📜 Live Activity Console</h2>
-                <div id="console-log" class="bg-slate-950 p-4 rounded-lg font-mono text-xs text-emerald-400 h-32 overflow-y-auto space-y-1">
-                    <div>> Console initialized. Waiting for WebSocket telemetry...</div>
-                </div>
+        <!-- ADMIN ONLY: User Management -->
+        <div id="admin-users-section" class="hidden bg-slate-900 p-6 rounded-xl border border-slate-800 shadow-xl space-y-4">
+            <h2 class="text-lg font-bold text-indigo-400">🛡️ User Accounts Management</h2>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse text-sm">
+                    <thead>
+                        <tr class="border-b border-slate-700 text-slate-400">
+                            <th class="p-3">ID</th>
+                            <th class="p-3">Username</th>
+                            <th class="p-3">Role</th>
+                            <th class="p-3">Last Login</th>
+                            <th class="p-3 text-right">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="users-table-body"></tbody>
+                </table>
             </div>
         </div>
 
+        <!-- Devices Grid / System Monitor -->
+        <div class="bg-slate-900 p-6 rounded-xl border border-slate-800 shadow-xl">
+            <div class="flex justify-between items-center mb-4">
+                <h2 id="devices-title" class="text-lg font-bold text-slate-100">📱 Hardware Telemetry & Actuators</h2>
+                <button onclick="logout()" class="text-xs text-rose-400 hover:text-rose-300 font-bold underline">Log Out</button>
+            </div>
+            <div id="devices-list" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+        </div>
+
+        <!-- Timed Schedules Section -->
+        <div class="bg-slate-900 p-6 rounded-xl border border-slate-800 shadow-xl space-y-4">
+            <h2 class="text-lg font-bold text-amber-400">⏰ Actuator Scheduling & Timers</h2>
+            <form onsubmit="createSchedule(event)" class="grid grid-cols-1 sm:grid-cols-4 gap-3">
+                <select id="sched-device-id" required class="rounded-lg p-2.5 text-sm text-slate-100">
+                    <option value="">Select Actuator...</option>
+                </select>
+                <select id="sched-action" required class="rounded-lg p-2.5 text-sm text-slate-100">
+                    <option value="ON">Turn ON</option>
+                    <option value="OFF">Turn OFF</option>
+                </select>
+                <input type="datetime-local" id="sched-time" required class="rounded-lg p-2.5 text-sm text-slate-100">
+                <button type="submit" class="bg-amber-600 hover:bg-amber-500 text-white font-bold py-2.5 rounded-lg text-sm shadow transition border border-amber-500">Set Timer</button>
+            </form>
+
+            <div class="overflow-x-auto pt-2">
+                <table class="w-full text-left border-collapse text-xs">
+                    <thead>
+                        <tr class="border-b border-slate-800 text-slate-400">
+                            <th class="p-2">Device ID</th>
+                            <th class="p-2">Action</th>
+                            <th class="p-2">Scheduled Time</th>
+                            <th class="p-2 text-right">Cancel</th>
+                        </tr>
+                    </thead>
+                    <tbody id="schedules-table-body"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Activity Log -->
+        <div class="bg-slate-900 p-6 rounded-xl border border-slate-800 shadow-xl">
+            <h2 class="text-sm font-bold text-slate-400 mb-2">📜 Live Activity Console</h2>
+            <div id="console-log" class="bg-slate-950 p-4 rounded-lg font-mono text-xs text-emerald-400 h-32 overflow-y-auto space-y-1 border border-slate-800">
+                <div>> Console initialized. Waiting for WebSocket telemetry...</div>
+            </div>
+        </div>
     </div>
 
-    <script>
-        const API_URL = window.location.hostname === 'localhost' ? 'http://localhost:3000/api' : '/api';
-        const WS_URL = window.location.hostname === 'localhost' ? 'ws://localhost:3000' : `wss://${window.location.host}`;
+</div>
 
-        let token = localStorage.getItem('iot_token');
-        let currentMode = 'login';
-        let socket;
+<script>
+    const API_URL = window.location.hostname === 'localhost' ? 'http://localhost:3000/api' : '/api';
+    const WS_URL = window.location.hostname === 'localhost' ? 'ws://localhost:3000' : `wss://${window.location.host}`;
 
-        function log(msg) {
-            const consoleDiv = document.getElementById('console-log');
-            const time = new Date().toLocaleTimeString();
-            consoleDiv.innerHTML += `<div>[${time}] ${msg}</div>`;
-            consoleDiv.scrollTop = consoleDiv.scrollHeight;
-        }
+    let token = localStorage.getItem('iot_token');
+    let currentMode = 'login';
+    let socket;
 
-        function toggleAccountModal(show) {
-            const modal = document.getElementById('account-modal');
-            if (show) {
-                modal.classList.remove('hidden');
-                loadAccountInfo();
-            } else {
-                modal.classList.add('hidden');
-            }
-        }
+    function log(msg) {
+        const consoleDiv = document.getElementById('console-log');
+        const time = new Date().toLocaleTimeString();
+        consoleDiv.innerHTML += `<div>[${time}] ${msg}</div>`;
+        consoleDiv.scrollTop = consoleDiv.scrollHeight;
+    }
 
-        function switchAuthTab(mode) {
-            currentMode = mode;
-            document.getElementById('auth-error').classList.add('hidden');
-            if (mode === 'login') {
-                document.getElementById('tab-login').className = 'flex-1 py-2 font-semibold text-indigo-400 border-b-2 border-indigo-500';
-                document.getElementById('tab-register').className = 'flex-1 py-2 font-semibold text-slate-400 hover:text-slate-200';
-                document.getElementById('auth-btn').innerText = 'Login';
-            } else {
-                document.getElementById('tab-register').className = 'flex-1 py-2 font-semibold text-indigo-400 border-b-2 border-indigo-500';
-                document.getElementById('tab-login').className = 'flex-1 py-2 font-semibold text-slate-400 hover:text-slate-200';
-                document.getElementById('auth-btn').innerText = 'Register Account';
-            }
-        }
-
-        async function handleAuth(e) {
-            e.preventDefault();
-            const username = document.getElementById('auth-username').value;
-            const password = document.getElementById('auth-password').value;
-            const errorEl = document.getElementById('auth-error');
-
-            try {
-                const endpoint = currentMode === 'login' ? '/login' : '/register';
-                const res = await fetch(API_URL + endpoint, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ username, password })
-                });
-                const data = await res.json();
-                if (!res.ok) throw new Error(data.error || 'Authentication failed');
-
-                if (currentMode === 'register') {
-                    alert('Registration successful! Please log in.');
-                    switchAuthTab('login');
-                } else {
-                    token = data.token;
-                    localStorage.setItem('iot_token', token);
-                    initDashboard();
-                }
-            } catch (err) {
-                errorEl.innerText = err.message;
-                errorEl.classList.remove('hidden');
-            }
-        }
-
-        function logout() {
-            localStorage.removeItem('iot_token');
-            location.reload();
-        }
-
-        function getUserRole() {
-            if (!token) return 'user';
-            try {
-                const base64Url = token.split('.')[1];
-                const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-                const jsonPayload = decodeURIComponent(atob(base64).split('').map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)).join(''));
-                return JSON.parse(jsonPayload).role;
-            } catch (e) {
-                return 'user';
-            }
-        }
-
-        async function loadAccountInfo() {
-            try {
-                const res = await fetch(API_URL + '/account', { headers: { 'Authorization': `Bearer ${token}` } });
-                if (res.ok) {
-                    const user = await res.json();
-                    document.getElementById('account-username').value = user.username;
-                }
-            } catch (err) {
-                console.error('Failed to load account details');
-            }
-        }
-
-        async function updateAccount(e) {
-            e.preventDefault();
-            const username = document.getElementById('account-username').value;
-            const current_password = document.getElementById('current-password').value;
-            const new_password = document.getElementById('new-password').value;
-
-            const bodyData = { username };
-            if (new_password) {
-                bodyData.current_password = current_password;
-                bodyData.new_password = new_password;
-            }
-
-            try {
-                const res = await fetch(API_URL + '/account', {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                    body: JSON.stringify(bodyData)
-                });
-                const data = await res.json();
-                if (!res.ok) throw new Error(data.error);
-
-                alert(data.message);
-                toggleAccountModal(false);
-                document.getElementById('current-password').value = '';
-                document.getElementById('new-password').value = '';
-                if (new_password) {
-                    logout();
-                }
-            } catch (err) {
-                alert(err.message);
-            }
-        }
-
-        function initWebSocket() {
-            socket = new WebSocket(WS_URL);
-            socket.onopen = () => log('Connected to WebSocket Server');
-            socket.onmessage = (event) => {
-                const msg = JSON.parse(event.data);
-                if (msg.type === 'STATE') {
-                    log(`Telemetry [${msg.topic}]: ${msg.data}`);
-                    const deviceId = msg.topic.split('/')[1];
-                    const stateBadge = document.getElementById(`state-${deviceId}`);
-                    
-                    if (stateBadge) {
-                        stateBadge.innerText = msg.data;
-                        stateBadge.className = 'px-2 py-1 text-xs font-bold rounded bg-cyan-500/20 text-cyan-300 border border-cyan-500/30';
-                    }
-                }
-            };
-        }
-
-        async function loadSystems() {
-            try {
-                const res = await fetch(API_URL + '/systems', { headers: { 'Authorization': `Bearer ${token}` } });
-                const systems = await res.json();
-                const container = document.getElementById('systems-list');
-                const systemSelect = document.getElementById('device-system-id');
-                
-                container.innerHTML = '';
-                systemSelect.innerHTML = '<option value="">Select System...</option>';
-
-                if (systems.length === 0) {
-                    container.innerHTML = `<p class="text-slate-400 text-xs italic">No systems created yet. Create one above to get your shared project token.</p>`;
-                    return;
-                }
-
-                systems.forEach(sys => {
-                    systemSelect.innerHTML += `<option value="${sys.id}">${sys.system_name} (${sys.hardware_type})</option>`;
-                    container.innerHTML += `
-                        <div class="bg-slate-900 border border-slate-700 p-3 rounded-lg flex flex-col justify-between space-y-2">
-                            <div>
-                                <h4 class="font-bold text-slate-200 text-sm">${sys.system_name}</h4>
-                                <span class="text-xs text-indigo-400">${sys.hardware_type}</span>
-                            </div>
-                            <div class="bg-slate-950 p-2 rounded border border-slate-800 text-xs text-amber-300 font-mono truncate">
-                                System Token: <strong>${sys.system_token}</strong>
-                            </div>
-                        </div>
-                    `;
-                });
-            } catch (err) { log('Failed to load systems'); }
-        }
-
-        async function createSystem(e) {
-            e.preventDefault();
-            const system_name = document.getElementById('system-name').value;
-            const hardware_type = document.getElementById('hardware-type').value;
-
-            try {
-                const res = await fetch(API_URL + '/systems', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                    body: JSON.stringify({ system_name, hardware_type })
-                });
-                const data = await res.json();
-                if (!res.ok) throw new Error(data.error);
-
-                alert(`System created successfully!\n\nSystem Token: ${data.system_token}`);
-                document.getElementById('system-name').value = '';
-                loadSystems();
-                loadDevices();
-            } catch (err) { alert(err.message); }
-        }
-
-        async function loadAdminUsers() {
-            try {
-                const res = await fetch(API_URL + '/admin/users', { headers: { 'Authorization': `Bearer ${token}` } });
-                const users = await res.json();
-                const tbody = document.getElementById('users-table-body');
-                tbody.innerHTML = '';
-                users.forEach(u => {
-                    tbody.innerHTML += `
-                        <tr class="border-b border-slate-700/50 hover:bg-slate-900/40">
-                            <td class="p-3 font-mono text-slate-400">${u.id}</td>
-                            <td class="p-3 font-bold text-slate-200">${u.username}</td>
-                            <td class="p-3"><span class="px-2 py-0.5 text-xs rounded ${u.role === 'admin' ? 'bg-indigo-950 text-indigo-300 border border-indigo-800' : 'bg-slate-700 text-slate-300'}">${u.role}</span></td>
-                            <td class="p-3 text-xs text-slate-400">${u.last_login}</td>
-                            <td class="p-3 text-right">
-                                ${u.role !== 'admin' ? `<button onclick="deleteUser(${u.id}, '${u.username}')" class="bg-rose-600/20 text-rose-400 border border-rose-500/30 hover:bg-rose-600 hover:text-white px-3 py-1 rounded text-xs transition">Delete</button>` : `<span class="text-xs text-slate-500 italic">Protected</span>`}
-                            </td>
-                        </tr>
-                    `;
-                });
-            } catch (err) { log('Failed to load user accounts list'); }
-        }
-
-        async function deleteUser(id, username) {
-            if (!confirm(`Delete user "${username}" and all their systems/devices/timers?`)) return;
-            try {
-                const res = await fetch(API_URL + `/admin/users/${id}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` } });
-                if (!res.ok) throw new Error('Failed');
-                loadAdminUsers();
-                loadSystems();
-                loadDevices();
-                loadSchedules();
-            } catch (err) { alert(err.message); }
-        }
-
-        async function loadDevices() {
-            const role = getUserRole();
-            const endpoint = role === 'admin' ? '/admin/monitor' : '/devices';
-
-            if (role === 'admin') {
-                document.getElementById('system-card').classList.add('hidden');
-                document.getElementById('provision-card').classList.add('hidden');
-                document.getElementById('admin-users-section').classList.remove('hidden');
-                document.getElementById('devices-title').innerText = '🛡️ System-Wide Sensors & Actuators Monitor';
-                loadAdminUsers();
-            } else {
-                loadSystems();
-            }
-
-            try {
-                const res = await fetch(API_URL + endpoint, { headers: { 'Authorization': `Bearer ${token}` } });
-                const data = await res.json();
-                const container = document.getElementById('devices-list');
-                const scheduleSelect = document.getElementById('sched-device-id');
-                
-                container.innerHTML = '';
-                scheduleSelect.innerHTML = '<option value="">Select Actuator for Timer...</option>';
-
-                if (data.length === 0) {
-                    container.innerHTML = `<p class="text-slate-400 text-sm col-span-2">No hardware registered in any system yet.</p>`;
-                    return;
-                }
-
-                data.forEach(item => {
-                    const deviceId = item.device_id;
-                    const deviceName = item.name;
-                    const systemName = item.system_name || 'Project';
-                    const systemToken = item.system_token || 'N/A';
-                    if (!deviceId) return;
-
-                    const isSensor = deviceName.toLowerCase().includes('sensor');
-                    const ownerTag = role === 'admin' ? `<span class="text-xs text-indigo-300 bg-indigo-950 px-2 py-0.5 rounded border border-indigo-800">Owner: ${item.username}</span>` : '';
-
-                    if (!isSensor) {
-                        scheduleSelect.innerHTML += `<option value="${deviceId}">${deviceName} (${deviceId})</option>`;
-                    }
-
-                    container.innerHTML += `
-                        <div class="bg-slate-900 border border-slate-700 p-4 rounded-lg space-y-3">
-                            <div class="flex justify-between items-start">
-                                <div>
-                                    <div class="flex items-center gap-2 mb-1">
-                                        <h3 class="font-bold text-slate-100">${deviceName}</h3>
-                                        ${ownerTag}
-                                    </div>
-                                    <p class="text-xs font-mono text-slate-400">ID: ${deviceId} | System: <span class="text-indigo-400">${systemName}</span></p>
-                                </div>
-                                <span id="state-${deviceId}" class="px-2 py-1 text-xs font-bold rounded bg-slate-800 text-slate-400 border border-slate-700">${isSensor ? 'Listening...' : 'Waiting...'}</span>
-                            </div>
-
-                            <div class="bg-slate-950 p-2 rounded border border-slate-800 text-xs text-amber-300 font-mono truncate">
-                                System Token: <strong>${systemToken}</strong>
-                            </div>
-                            
-                            ${isSensor ? `
-                                <div class="bg-slate-950 p-2.5 rounded border border-slate-800 text-xs text-cyan-400 font-mono">
-                                    Status: Connected Sensor (Telemetry Stream Active)
-                                </div>
-                            ` : `
-                                <div class="flex gap-2">
-                                    <button onclick="sendCommand('${systemToken}', '${deviceId}', 'ON')" class="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold py-1.5 rounded transition text-sm">TURN ON</button>
-                                    <button onclick="sendCommand('${systemToken}', '${deviceId}', 'OFF')" class="flex-1 bg-rose-600 hover:bg-rose-500 text-white font-semibold py-1.5 rounded transition text-sm">TURN OFF</button>
-                                </div>
-                            `}
-                        </div>
-                    `;
-                });
-                loadSchedules();
-            } catch (err) { log('Failed to fetch devices data'); }
-        }
-
-        async function registerDevice(e) {
-            e.preventDefault();
-            const system_id = document.getElementById('device-system-id').value;
-            const device_id = document.getElementById('new-device-id').value;
-            const name = document.getElementById('new-device-name').value;
-
-            try {
-                const res = await fetch(API_URL + '/devices', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                    body: JSON.stringify({ system_id, device_id, name })
-                });
-                const data = await res.json();
-                if (!res.ok) throw new Error(data.error);
-
-                log(`Device registered successfully under system ID ${system_id}`);
-                alert(`Device added successfully to system!`);
-                
-                document.getElementById('new-device-id').value = '';
-                document.getElementById('new-device-name').value = '';
-                loadDevices();
-            } catch (err) { alert(err.message); }
-        }
-
-        async function createSchedule(e) {
-            e.preventDefault();
-            const device_id = document.getElementById('sched-device-id').value;
-            const action = document.getElementById('sched-action').value;
-            const execute_at = document.getElementById('sched-time').value;
-
-            try {
-                const res = await fetch(API_URL + '/schedules', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                    body: JSON.stringify({ device_id, action, execute_at })
-                });
-                const data = await res.json();
-                if (!res.ok) throw new Error(data.error);
-
-                log(`Timer set: ${device_id} to turn ${action} at ${execute_at}`);
-                loadSchedules();
-            } catch (err) { alert(err.message); }
-        }
-
-        async function loadSchedules() {
-            try {
-                const res = await fetch(API_URL + '/schedules', { headers: { 'Authorization': `Bearer ${token}` } });
-                const schedules = await res.json();
-                const tbody = document.getElementById('schedules-table-body');
-                tbody.innerHTML = '';
-
-                if (schedules.length === 0) {
-                    tbody.innerHTML = `<tr><td colspan="4" class="p-2 text-slate-500 italic">No active timers set.</td></tr>`;
-                    return;
-                }
-
-                schedules.forEach(s => {
-                    tbody.innerHTML += `
-                        <tr class="border-b border-slate-700/40">
-                            <td class="p-2 font-mono text-slate-300">${s.device_id}</td>
-                            <td class="p-2 font-bold ${s.action === 'ON' ? 'text-emerald-400' : 'text-rose-400'}">${s.action}</td>
-                            <td class="p-2 text-slate-300">${s.execute_at.replace('T', ' ')}</td>
-                            <td class="p-2 text-right">
-                                <button onclick="deleteSchedule(${s.id})" class="text-rose-400 hover:text-rose-300 underline text-xs">Cancel</button>
-                            </td>
-                        </tr>
-                    `;
-                });
-            } catch (err) { log('Failed to load schedules'); }
-        }
-
-        async function deleteSchedule(id) {
-            try {
-                await fetch(API_URL + `/schedules/${id}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` } });
-                loadSchedules();
-                log(`Cancelled timer schedule ID: ${id}`);
-            } catch (err) { alert('Failed to delete schedule'); }
-        }
-
-        function sendCommand(system_token, device_id, state) {
-            if (socket && socket.readyState === WebSocket.OPEN) {
-                socket.send(JSON.stringify({ system_token, device_id, state }));
-                log(`Sent manual ${state} command to ${device_id} using system token`);
-            } else {
-                alert('WebSocket connection is not active.');
-            }
-        }
-
-        function initDashboard() {
-            document.getElementById('auth-card').classList.add('hidden');
-            document.getElementById('dashboard').classList.remove('hidden');
-            
-            const userStatusEl = document.getElementById('user-status');
-            userStatusEl.classList.remove('hidden');
-            
-            const role = getUserRole();
-            userStatusEl.innerText = role === 'admin' ? '👤 Admin Account' : '👤 Logged In';
-            
+    function toggleAccountModal(show) {
+        const modal = document.getElementById('account-modal');
+        if (show) {
+            modal.classList.remove('hidden');
             loadAccountInfo();
-            initWebSocket();
-            loadDevices();
+        } else {
+            modal.classList.add('hidden');
+        }
+    }
+
+    function switchAuthTab(mode) {
+        currentMode = mode;
+        document.getElementById('auth-error').classList.add('hidden');
+        if (mode === 'login') {
+            document.getElementById('tab-login').className = 'flex-1 py-2 font-bold text-indigo-400 border-b-2 border-indigo-500';
+            document.getElementById('tab-register').className = 'flex-1 py-2 font-bold text-slate-400 hover:text-slate-200';
+            document.getElementById('auth-btn').innerText = 'Login';
+        } else {
+            document.getElementById('tab-register').className = 'flex-1 py-2 font-bold text-indigo-400 border-b-2 border-indigo-500';
+            document.getElementById('tab-login').className = 'flex-1 py-2 font-bold text-slate-400 hover:text-slate-200';
+            document.getElementById('auth-btn').innerText = 'Register Account';
+        }
+    }
+
+    async function handleAuth(e) {
+        e.preventDefault();
+        const username = document.getElementById('auth-username').value;
+        const password = document.getElementById('auth-password').value;
+        const errorEl = document.getElementById('auth-error');
+
+        try {
+            const endpoint = currentMode === 'login' ? '/login' : '/register';
+            const res = await fetch(API_URL + endpoint, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, password })
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || 'Authentication failed');
+
+            if (currentMode === 'register') {
+                alert('Registration successful! Please log in.');
+                switchAuthTab('login');
+            } else {
+                token = data.token;
+                localStorage.setItem('iot_token', token);
+                initDashboard();
+            }
+        } catch (err) {
+            errorEl.innerText = err.message;
+            errorEl.classList.remove('hidden');
+        }
+    }
+
+    function logout() {
+        localStorage.removeItem('iot_token');
+        location.reload();
+    }
+
+    function getUserRole() {
+        if (!token) return 'user';
+        try {
+            const base64Url = token.split('.')[1];
+            const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+            const jsonPayload = decodeURIComponent(atob(base64).split('').map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)).join(''));
+            return JSON.parse(jsonPayload).role;
+        } catch (e) {
+            return 'user';
+        }
+    }
+
+    async function loadAccountInfo() {
+        try {
+            const res = await fetch(API_URL + '/account', { headers: { 'Authorization': `Bearer ${token}` } });
+            if (res.ok) {
+                const user = await res.json();
+                document.getElementById('account-username').value = user.username;
+            }
+        } catch (err) {
+            console.error('Failed to load account details');
+        }
+    }
+
+    async function updateAccount(e) {
+        e.preventDefault();
+        const username = document.getElementById('account-username').value;
+        const current_password = document.getElementById('current-password').value;
+        const new_password = document.getElementById('new-password').value;
+
+        const bodyData = { username };
+        if (new_password) {
+            bodyData.current_password = current_password;
+            bodyData.new_password = new_password;
         }
 
-        localStorage.removeItem('iot_token');
-    </script>
-</body>
-</html>
+        try {
+            const res = await fetch(API_URL + '/account', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                body: JSON.stringify(bodyData)
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error);
+
+            alert(data.message);
+            toggleAccountModal(false);
+            document.getElementById('current-password').value = '';
+            document.getElementById('new-password').value = '';
+            if (new_password) {
+                logout();
+            }
+        } catch (err) {
+            alert(err.message);
+        }
+    }
+
+    function initWebSocket() {
+        socket = new WebSocket(WS_URL);
+        socket.onopen = () => log('Connected to WebSocket Server');
+        socket.onmessage = (event) => {
+            const msg = JSON.parse(event.data);
+            if (msg.type === 'STATE') {
+                log(`Telemetry [${msg.topic}]: ${msg.data}`);
+                const deviceId = msg.topic.split('/')[1];
+                const stateBadge = document.getElementById(`state-${deviceId}`);
+                
+                if (stateBadge) {
+                    stateBadge.innerText = msg.data;
+                    stateBadge.className = 'px-2.5 py-1 text-xs font-bold rounded bg-cyan-950 text-cyan-300 border border-cyan-700';
+                }
+            }
+        };
+    }
+
+    async function loadSystems() {
+        try {
+            const res = await fetch(API_URL + '/systems', { headers: { 'Authorization': `Bearer ${token}` } });
+            const systems = await res.json();
+            const container = document.getElementById('systems-list');
+            const systemSelect = document.getElementById('device-system-id');
+            
+            container.innerHTML = '';
+            systemSelect.innerHTML = '<option value="">Select System...</option>';
+
+            if (systems.length === 0) {
+                container.innerHTML = `<p class="text-slate-400 text-xs italic">No systems created yet. Create one above to get your shared project token.</p>`;
+                return;
+            }
+
+            systems.forEach(sys => {
+                systemSelect.innerHTML += `<option value="${sys.id}">${sys.system_name} (${sys.hardware_type})</option>`;
+                container.innerHTML += `
+                    <div class="bg-slate-950 border border-slate-800 p-3.5 rounded-lg flex flex-col justify-between space-y-2 shadow">
+                        <div>
+                            <h4 class="font-bold text-slate-100 text-sm">${sys.system_name}</h4>
+                            <span class="text-xs text-indigo-400 font-semibold">${sys.hardware_type}</span>
+                        </div>
+                        <div class="bg-slate-900 p-2 rounded border border-slate-700 text-xs text-amber-300 font-mono truncate">
+                            System Token: <strong>${sys.system_token}</strong>
+                        </div>
+                    </div>
+                `;
+            });
+        } catch (err) { log('Failed to load systems'); }
+    }
+
+    async function createSystem(e) {
+        e.preventDefault();
+        const system_name = document.getElementById('system-name').value;
+        const hardware_type = document.getElementById('hardware-type').value;
+
+        try {
+            const res = await fetch(API_URL + '/systems', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                body: JSON.stringify({ system_name, hardware_type })
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error);
+
+            alert(`System created successfully!\n\nSystem Token: ${data.system_token}`);
+            document.getElementById('system-name').value = '';
+            loadSystems();
+            loadDevices();
+        } catch (err) { alert(err.message); }
+    }
+
+    async function loadAdminUsers() {
+        try {
+            const res = await fetch(API_URL + '/admin/users', { headers: { 'Authorization': `Bearer ${token}` } });
+            const users = await res.json();
+            const tbody = document.getElementById('users-table-body');
+            tbody.innerHTML = '';
+            users.forEach(u => {
+                tbody.innerHTML += `
+                    <tr class="border-b border-slate-800 hover:bg-slate-800/50">
+                        <td class="p-3 font-mono text-slate-400">${u.id}</td>
+                        <td class="p-3 font-bold text-slate-200">${u.username}</td>
+                        <td class="p-3"><span class="px-2 py-0.5 text-xs rounded font-bold ${u.role === 'admin' ? 'bg-indigo-950 text-indigo-300 border border-indigo-700' : 'bg-slate-800 text-slate-300 border border-slate-700'}">${u.role}</span></td>
+                        <td class="p-3 text-xs text-slate-400">${u.last_login}</td>
+                        <td class="p-3 text-right">
+                            ${u.role !== 'admin' ? `<button onclick="deleteUser(${u.id}, '${u.username}')" class="bg-rose-950 text-rose-300 border border-rose-700 hover:bg-rose-800 hover:text-white px-3 py-1 rounded text-xs transition font-bold">Delete</button>` : `<span class="text-xs text-slate-500 italic">Protected</span>`}
+                        </td>
+                    </tr>
+                `;
+            });
+        } catch (err) { log('Failed to load user accounts list'); }
+    }
+
+    async function deleteUser(id, username) {
+        if (!confirm(`Delete user "${username}" and all their systems/devices/timers?`)) return;
+        try {
+            const res = await fetch(API_URL + `/admin/users/${id}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` } });
+            if (!res.ok) throw new Error('Failed');
+            loadAdminUsers();
+            loadSystems();
+            loadDevices();
+            loadSchedules();
+        } catch (err) { alert(err.message); }
+    }
+
+    async function loadDevices() {
+        const role = getUserRole();
+        const endpoint = role === 'admin' ? '/admin/monitor' : '/devices';
+
+        if (role === 'admin') {
+            document.getElementById('system-card').classList.add('hidden');
+            document.getElementById('provision-card').classList.add('hidden');
+            document.getElementById('admin-users-section').classList.remove('hidden');
+            document.getElementById('devices-title').innerText = '🛡️ System-Wide Sensors & Actuators Monitor';
+            loadAdminUsers();
+        } else {
+            loadSystems();
+        }
+
+        try {
+            const res = await fetch(API_URL + endpoint, { headers: { 'Authorization': `Bearer ${token}` } });
+            const data = await res.json();
+            const container = document.getElementById('devices-list');
+            const scheduleSelect = document.getElementById('sched-device-id');
+            
+            container.innerHTML = '';
+            scheduleSelect.innerHTML = '<option value="">Select Actuator for Timer...</option>';
+
+            if (data.length === 0) {
+                container.innerHTML = `<p class="text-slate-400 text-sm col-span-2 italic">No hardware registered in any system yet.</p>`;
+                return;
+            }
+
+            data.forEach(item => {
+                const deviceId = item.device_id;
+                const deviceName = item.name;
+                const systemName = item.system_name || 'Project';
+                const systemToken = item.system_token || 'N/A';
+                if (!deviceId) return;
+
+                const isSensor = deviceName.toLowerCase().includes('sensor');
+                const ownerTag = role === 'admin' ? `<span class="text-xs text-indigo-300 bg-indigo-950 px-2 py-0.5 rounded border border-indigo-800">Owner: ${item.username}</span>` : '';
+
+                if (!isSensor) {
+                    scheduleSelect.innerHTML += `<option value="${deviceId}">${deviceName} (${deviceId})</option>`;
+                }
+
+                container.innerHTML += `
+                    <div class="bg-slate-950 border border-slate-800 p-4 rounded-lg space-y-3 shadow">
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <div class="flex items-center gap-2 mb-1">
+                                    <h3 class="font-bold text-slate-100">${deviceName}</h3>
+                                    ${ownerTag}
+                                </div>
+                                <p class="text-xs font-mono text-slate-400">ID: ${deviceId} | System: <span class="text-indigo-400 font-semibold">${systemName}</span></p>
+                            </div>
+                            <span id="state-${deviceId}" class="px-2.5 py-1 text-xs font-bold rounded bg-slate-900 text-slate-300 border border-slate-700">${isSensor ? 'Listening...' : 'Waiting...'}</span>
+                        </div>
+
+                        <div class="bg-slate-900 p-2 rounded border border-slate-700 text-xs text-amber-300 font-mono truncate">
+                            System Token: <strong>${systemToken}</strong>
+                        </div>
+                        
+                        ${isSensor ? `
+                            <div class="bg-slate-900 p-2.5 rounded border border-slate-700 text-xs text-cyan-400 font-mono">
+                                Status: Connected Sensor (Telemetry Stream Active)
+                            </div>
+                        ` : `
+                            <div class="flex gap-2">
+                                <button onclick="sendCommand('${systemToken}', '${deviceId}', 'ON')" class="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2 rounded transition border border-emerald-500 text-sm shadow">TURN ON</button>
+                                <button onclick="sendCommand('${systemToken}', '${deviceId}', 'OFF')" class="flex-1 bg-rose-600 hover:bg-rose-500 text-white font-bold py-2 rounded transition border border-rose-500 text-sm shadow">TURN OFF</button>
+                            </div>
+                        `}
+                    </div>
+                `;
+            });
+            loadSchedules();
+        } catch (err) { log('Failed to fetch devices data'); }
+    }
+
+    async function registerDevice(e) {
+        e.preventDefault();
+        const system_id = document.getElementById('device-system-id').value;
+        const device_id = document.getElementById('new-device-id').value;
+        const name = document.getElementById('new-device-name').value;
+
+        try {
+            const res = await fetch(API_URL + '/devices', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                body: JSON.stringify({ system_id, device_id, name })
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error);
+
+            log(`Device registered successfully under system ID ${system_id}`);
+            alert(`Device added successfully to system!`);
+            
+            document.getElementById('new-device-id').value = '';
+            document.getElementById('new-device-name').value = '';
+            loadDevices();
+        } catch (err) { alert(err.message); }
+    }
+
+    async function createSchedule(e) {
+        e.preventDefault();
+        const device_id = document.getElementById('sched-device-id').value;
+        const action = document.getElementById('sched-action').value;
+        const execute_at = document.getElementById('sched-time').value;
+
+        try {
+            const res = await fetch(API_URL + '/schedules', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                body: JSON.stringify({ device_id, action, execute_at })
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error);
+
+            log(`Timer set: ${device_id} to turn ${action} at ${execute_at}`);
+            loadSchedules();
+        } catch (err) { alert(err.message); }
+    }
+
+    async function loadSchedules() {
+        try {
+            const res = await fetch(API_URL + '/schedules', { headers: { 'Authorization': `Bearer ${token}` } });
+            const schedules = await res.json();
+            const tbody = document.getElementById('schedules-table-body');
+            tbody.innerHTML = '';
+
+            if (schedules.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="4" class="p-2 text-slate-500 italic">No active timers set.</td></tr>`;
+                return;
+            }
+
+            schedules.forEach(s => {
+                tbody.innerHTML += `
+                    <tr class="border-b border-slate-800">
+                        <td class="p-2 font-mono text-slate-300">${s.device_id}</td>
+                        <td class="p-2 font-bold ${s.action === 'ON' ? 'text-emerald-400' : 'text-rose-400'}">${s.action}</td>
+                        <td class="p-2 text-slate-300">${s.execute_at.replace('T', ' ')}</td>
+                        <td class="p-2 text-right">
+                            <button onclick="deleteSchedule(${s.id})" class="text-rose-400 hover:text-rose-300 font-bold underline text-xs">Cancel</button>
+                        </td>
+                    </tr>
+                `;
+            });
+        } catch (err) { log('Failed to load schedules'); }
+    }
+
+    async function deleteSchedule(id) {
+        try {
+            await fetch(API_URL + `/schedules/${id}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` } });
+            loadSchedules();
+            log(`Cancelled timer schedule ID: ${id}`);
+        } catch (err) { alert('Failed to delete schedule'); }
+    }
+
+    function sendCommand(system_token, device_id, state) {
+        if (socket && socket.readyState === WebSocket.OPEN) {
+            socket.send(JSON.stringify({ system_token, device_id, state }));
+            log(`Sent manual ${state} command to ${device_id} using system token`);
+        } else {
+            alert('WebSocket connection is not active.');
+        }
+    }
+
+    function initDashboard() {
+        document.getElementById('auth-card').classList.add('hidden');
+        document.getElementById('dashboard').classList.remove('hidden');
+        
+        const userStatusEl = document.getElementById('user-status');
+        userStatusEl.classList.remove('hidden');
+        
+        const role = getUserRole();
+        userStatusEl.innerText = role === 'admin' ? '👤 Admin Account' : '👤 Logged In';
+        
+        loadAccountInfo();
+        initWebSocket();
+        loadDevices();
+    }
+
+    localStorage.removeItem('iot_token');
+</script>
