@@ -36,7 +36,7 @@ async function initDB() {
             last_login TEXT DEFAULT 'Never'
         )`);
 
-        // Systems / Projects table (Blynk-style template tokens)
+        // Systems / Projects table
         await db.execute(`CREATE TABLE IF NOT EXISTS systems (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             user_id INTEGER,
@@ -46,7 +46,7 @@ async function initDB() {
             FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
         )`);
 
-        // PERSISTENT DEVICES TABLE (No DROP TABLE)
+        // PERSISTENT DEVICES TABLE
         await db.execute(`CREATE TABLE IF NOT EXISTS devices (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             user_id INTEGER,
@@ -286,6 +286,34 @@ app.get('/api/devices', verifyToken, async (req, res) => {
         res.json(rs.rows);
     } catch (err) {
         res.status(500).json({ error: 'Database error' });
+    }
+});
+
+// DELETE DEVICE ROUTE
+app.delete('/api/devices/:id', verifyToken, async (req, res) => {
+    const deviceIdToDelete = req.params.id;
+
+    try {
+        if (req.user.role !== 'admin') {
+            const check = await db.execute({
+                sql: `SELECT devices.id FROM devices 
+                      JOIN systems ON devices.system_id = systems.id 
+                      WHERE devices.id = ? AND systems.user_id = ?`,
+                args: [deviceIdToDelete, req.user.id]
+            });
+            if (check.rows.length === 0) {
+                return res.status(403).json({ error: 'Device not found or access denied.' });
+            }
+        }
+
+        await db.execute({
+            sql: `DELETE FROM devices WHERE id = ?`,
+            args: [deviceIdToDelete]
+        });
+
+        res.json({ message: 'Device deleted successfully.' });
+    } catch (err) {
+        res.status(500).json({ error: 'Failed to delete device.' });
     }
 });
 
