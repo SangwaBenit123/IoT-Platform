@@ -46,9 +46,8 @@ async function initDB() {
             FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
         )`);
 
-        await db.execute(`DROP TABLE IF EXISTS devices`);
-
-        await db.execute(`CREATE TABLE devices (
+        // PERSISTENT DEVICES TABLE (No DROP TABLE)
+        await db.execute(`CREATE TABLE IF NOT EXISTS devices (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             user_id INTEGER,
             system_id INTEGER,
@@ -208,7 +207,7 @@ app.put('/api/account', verifyToken, async (req, res) => {
     }
 });
 
-// ================= SYSTEM / PROJECT ROUTES (Blynk Style) =================
+// ================= SYSTEM / PROJECT ROUTES =================
 
 app.post('/api/systems', verifyToken, async (req, res) => {
     const { system_name, hardware_type } = req.body;
@@ -420,7 +419,6 @@ wss.on('connection', (ws) => {
     ws.on('message', (message) => {
         try {
             const msg = JSON.parse(message);
-            // Accepts system_token instead of individual device tokens
             if (msg.system_token && msg.device_id && msg.state) {
                 db.execute({
                     sql: `SELECT * FROM systems WHERE system_token = ?`,
