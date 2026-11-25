@@ -29,6 +29,9 @@ async function ensureScheduleColumns() {
     const cols = await db.execute(`PRAGMA table_info(schedules)`);
     const existing = new Set(cols.rows.map((r) => r.name));
 
+    if (!existing.has('system_id')) {
+        await db.execute(`ALTER TABLE schedules ADD COLUMN system_id INTEGER`);
+    }
     if (!existing.has('daily_time')) {
         await db.execute(`ALTER TABLE schedules ADD COLUMN daily_time TEXT`);
     }
@@ -75,13 +78,15 @@ async function initDB() {
         await db.execute(`CREATE TABLE IF NOT EXISTS schedules (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             user_id INTEGER,
+            system_id INTEGER,
             device_id TEXT,
             action TEXT,
             execute_at TEXT,
             daily_time TEXT,
             duration_sec INTEGER DEFAULT 0,
             last_triggered_date TEXT,
-            FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+            FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE,
+            FOREIGN KEY(system_id) REFERENCES systems(id) ON DELETE CASCADE
         )`);
 
         await ensureScheduleColumns();
@@ -267,7 +272,6 @@ app.post('/api/devices', verifyToken, async (req, res) => {
     if (!system_id || !device_id || !name) return res.status(400).json({ error: 'System ID, Device ID, and name are required' });
 
     try {
-        // Verify system ownership
         const sysCheck = await db.execute({
             sql: `SELECT * FROM systems WHERE id = ? AND user_id = ?`,
             args: [system_id, req.user.id]
@@ -340,11 +344,11 @@ app.delete('/api/devices/:id', verifyToken, async (req, res) => {
 // ================= SCHEDULE / RECURRING DAILY TIMER ROUTES =================
 
 app.post('/api/schedules', verifyToken, async (req, res) => {
-    const { device_id, action, daily_time, duration_sec } = req.body;
+    const { system_id, device_id, action, daily_time, duration_sec } = req.body;
     const parsedDuration = Number(duration_sec);
 
-    if (!device_id || !action || !daily_time || !/^\d{2}:\d{2}$/.test(daily_time)) {
-        return res.status(400).json({ error: 'Device, action, and valid daily time (HH:MM) are required.' });
+    if (!system_id || !device_id || !action || !daily_time || !/^\d{2}:\d{2}$/.test(daily_time)) {
+        return res.status(400).json({ error: 'System, device, action, and valid daily time (HH:MM) are required.' });
     }
     if (!Number.isFinite(parsedDuration) || parsedDuration < 0) {
         return res.status(400).json({ error: 'Duration in seconds must be 0 or a positive number.' });
@@ -354,20 +358,20 @@ app.post('/api/schedules', verifyToken, async (req, res) => {
     }
 
     try {
-        let query = `SELECT * FROM devices WHERE device_id = ?`;
-        let params = [device_id];
+        let query = `SELECT * FROM devices WHERE system_id = ? AND device_id = ?`;
+        let params = [system_id, device_id];
         if (req.user.role !== 'admin') {
-            query = `SELECT * FROM devices WHERE user_id = ? AND device_id = ?`;
-            params = [req.user.id, device_id];
+            query = `SELECT * FROM devices WHERE user_id = ? AND system_id = ? AND device_id = ?`;
+            params = [req.user.id, system_id, device_id];
         }
 
         const devRs = await db.execute({ sql: query, args: params });
-        if (devRs.rows.length === 0) return res.status(403).json({ error: 'Device not found or access denied' });
+        if (devRs.rows.length === 0) return res.status(403).json({ error: 'Device not found in the selected system or access denied' });
 
         const schedRs = await db.execute({
-            sql: `INSERT INTO schedules (user_id, device_id, action, execute_at, daily_time, duration_sec, last_triggered_date) 
-                  VALUES (?, ?, ?, ?, ?, ?, NULL)`,
-            args: [req.user.id, device_id, action, daily_time, daily_time, Math.floor(parsedDuration)]
+            sql: `INSERT INTO schedules (user_id, system_id, device_id, action, execute_at, daily_time, duration_sec, last_triggered_date) 
+                  VALUES (?, ?, ?, ?, ?, ?, ?, NULL)`,
+            args: [req.user.id, system_id, device_id, action, daily_time, daily_time, Math.floor(parsedDuration)]
         });
         res.json({ message: 'Daily recurring timer created successfully', id: Number(schedRs.lastInsertRowid) });
     } catch (err) {
@@ -377,10 +381,19 @@ app.post('/api/schedules', verifyToken, async (req, res) => {
 
 app.get('/api/schedules', verifyToken, async (req, res) => {
     try {
-        let query = `SELECT * FROM schedules`;
+        let query = `
+            SELECT schedules.*, systems.system_name 
+            FROM schedules 
+            LEFT JOIN systems ON schedules.system_id = systems.id
+        `;
         let params = [];
         if (req.user.role !== 'admin') {
-            query = `SELECT * FROM schedules WHERE user_id = ?`;
+            query = `
+                SELECT schedules.*, systems.system_name 
+                FROM schedules 
+                LEFT JOIN systems ON schedules.system_id = systems.id 
+                WHERE schedules.user_id = ?
+            `;
             params = [req.user.id];
         }
         const rs = await db.execute({ sql: query, args: params });
@@ -436,7 +449,7 @@ app.get('/api/admin/monitor', verifyToken, async (req, res) => {
     if (req.user.role !== 'admin') return res.status(403).json({ error: 'Access denied.' });
     try {
         const rs = await db.execute(`
-            SELECT users.username, systems.system_name, devices.device_id, devices.name, systems.system_token 
+            SELECT users.username, systems.id AS system_id, systems.system_name, devices.device_id, devices.name, systems.system_token 
             FROM devices 
             JOIN users ON users.id = devices.user_id
             JOIN systems ON systems.id = devices.system_id

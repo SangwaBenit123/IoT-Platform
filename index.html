@@ -56,7 +56,7 @@
         
         /* Dynamic Layout Grids */
         .form-row { display: flex; flex-wrap: wrap; gap: 0.75rem; width: 100%; }
-        .flex-1 { flex: 1 1 180px; }
+        .flex-1 { flex: 1 1 170px; }
         .grid-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1rem; }
         
         /* Table Formatting */
@@ -204,6 +204,9 @@
             <div class="card">
                 <h2 class="card-title card-title-amber">⏰ Recurring Daily Timers (Repeats Every Day)</h2>
                 <form onsubmit="createSchedule(event)" class="form-row">
+                    <select id="sched-system-id" onchange="filterScheduleDevices()" required class="flex-1">
+                        <option value="">Choose System...</option>
+                    </select>
                     <select id="sched-device-id" required class="flex-1">
                         <option value="">Choose Actuator...</option>
                     </select>
@@ -221,6 +224,7 @@
                     <table>
                         <thead>
                             <tr>
+                                <th>System</th>
                                 <th>Device ID</th>
                                 <th>Action</th>
                                 <th>Daily Time</th>
@@ -251,6 +255,7 @@
         let token = localStorage.getItem('iot_token');
         let currentMode = 'login';
         let socket;
+        let cachedDevices = [];
 
         function log(msg) {
             const consoleDiv = document.getElementById('console-log');
@@ -409,9 +414,11 @@
                 const systems = await res.json();
                 const container = document.getElementById('systems-list');
                 const systemSelect = document.getElementById('device-system-id');
+                const schedSystemSelect = document.getElementById('sched-system-id');
                 
                 container.innerHTML = '';
                 systemSelect.innerHTML = '<option value="">Select System...</option>';
+                schedSystemSelect.innerHTML = '<option value="">Choose System...</option>';
 
                 if (systems.length === 0) {
                     container.innerHTML = `<p style="color:#94a3b8; font-size:0.75rem; font-style:italic;">No systems created yet. Create one above to get your shared project token.</p>`;
@@ -420,6 +427,7 @@
 
                 systems.forEach(sys => {
                     systemSelect.innerHTML += `<option value="${sys.id}">${sys.system_name} (${sys.hardware_type})</option>`;
+                    schedSystemSelect.innerHTML += `<option value="${sys.id}">${sys.system_name} (${sys.hardware_type})</option>`;
                     container.innerHTML += `
                         <div class="system-box">
                             <div>
@@ -433,6 +441,22 @@
                     `;
                 });
             } catch (err) { log('Failed to load systems'); }
+        }
+
+        function filterScheduleDevices() {
+            const selectedSystemId = document.getElementById('sched-system-id').value;
+            const scheduleSelect = document.getElementById('sched-device-id');
+            scheduleSelect.innerHTML = '<option value="">Choose Actuator...</option>';
+
+            if (!selectedSystemId) return;
+
+            cachedDevices.forEach(item => {
+                if (String(item.system_id) !== String(selectedSystemId)) return;
+                const isSensor = item.name.toLowerCase().includes('sensor');
+                if (!isSensor) {
+                    scheduleSelect.innerHTML += `<option value="${item.device_id}">${item.name} (${item.device_id})</option>`;
+                }
+            });
         }
 
         async function createSystem(e) {
@@ -501,24 +525,39 @@
                 document.getElementById('devices-title').innerText = '🛡️ System-Wide Sensors & Actuators Monitor';
                 loadAdminUsers();
             } else {
-                loadSystems();
+                await loadSystems();
             }
 
             try {
                 const res = await fetch(API_URL + endpoint, { headers: { 'Authorization': `Bearer ${token}` } });
                 const data = await res.json();
-                const container = document.getElementById('devices-list');
-                const scheduleSelect = document.getElementById('sched-device-id');
-                
-                container.innerHTML = '';
-                scheduleSelect.innerHTML = '<option value="">Choose Actuator...</option>';
+                cachedDevices = Array.isArray(data) ? data : [];
 
-                if (data.length === 0) {
+                const container = document.getElementById('devices-list');
+                const schedSystemSelect = document.getElementById('sched-system-id');
+
+                if (role === 'admin') {
+                    const seenSystems = new Map();
+                    cachedDevices.forEach(item => {
+                        if (item.system_id && !seenSystems.has(String(item.system_id))) {
+                            seenSystems.set(String(item.system_id), `${item.system_name} (${item.username})`);
+                        }
+                    });
+                    schedSystemSelect.innerHTML = '<option value="">Choose System...</option>';
+                    seenSystems.forEach((label, id) => {
+                        schedSystemSelect.innerHTML += `<option value="${id}">${label}</option>`;
+                    });
+                }
+
+                container.innerHTML = '';
+                filterScheduleDevices();
+
+                if (cachedDevices.length === 0) {
                     container.innerHTML = `<p style="color:#94a3b8; font-size:0.875rem; font-style:italic;">No hardware registered in any system yet.</p>`;
                     return;
                 }
 
-                data.forEach(item => {
+                cachedDevices.forEach(item => {
                     const deviceId = item.device_id;
                     const deviceName = item.name;
                     const systemName = item.system_name || 'Project';
@@ -527,10 +566,6 @@
 
                     const isSensor = deviceName.toLowerCase().includes('sensor');
                     const ownerTag = role === 'admin' ? `<span style="font-size:0.75rem; color:#a5b4fc; background:#1e1b4b; padding:0.125rem 0.375rem; border-radius:0.25rem; border:1px solid #3730a3;">Owner: ${item.username}</span>` : '';
-
-                    if (!isSensor) {
-                        scheduleSelect.innerHTML += `<option value="${deviceId}">${deviceName} (${deviceId})</option>`;
-                    }
 
                     container.innerHTML += `
                         <div class="system-box" style="padding:1rem;">
@@ -614,6 +649,7 @@
 
         async function createSchedule(e) {
             e.preventDefault();
+            const system_id = document.getElementById('sched-system-id').value;
             const device_id = document.getElementById('sched-device-id').value;
             const action = document.getElementById('sched-action').value;
             const daily_time = document.getElementById('sched-time').value;
@@ -623,7 +659,7 @@
                 const res = await fetch(API_URL + '/schedules', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                    body: JSON.stringify({ device_id, action, daily_time, duration_sec })
+                    body: JSON.stringify({ system_id, device_id, action, daily_time, duration_sec })
                 });
                 const data = await res.json();
                 if (!res.ok) throw new Error(data.error);
@@ -643,7 +679,7 @@
                 tbody.innerHTML = '';
 
                 if (schedules.length === 0) {
-                    tbody.innerHTML = `<tr><td colspan="5" style="padding:0.5rem; color:#64748b; font-style:italic;">No recurring timers set.</td></tr>`;
+                    tbody.innerHTML = `<tr><td colspan="6" style="padding:0.5rem; color:#64748b; font-style:italic;">No recurring timers set.</td></tr>`;
                     return;
                 }
 
@@ -651,9 +687,11 @@
                     const timeDisplay = s.daily_time || (s.execute_at ? s.execute_at.slice(-5) : '--:--');
                     const durSec = Number(s.duration_sec) || 0;
                     const durLabel = durSec > 0 ? `${durSec} sec` : 'No auto-revert';
+                    const sysLabel = s.system_name || '—';
 
                     tbody.innerHTML += `
                         <tr>
+                            <td style="color:#818cf8; font-weight:600;">${sysLabel}</td>
                             <td style="font-family:monospace; color:#cbd5e1;">${s.device_id}</td>
                             <td style="font-weight:700; color:${s.action === 'ON' ? '#34d399' : '#fb7185'};">${s.action}</td>
                             <td style="color:#cbd5e1;">Every day at ${timeDisplay}</td>
