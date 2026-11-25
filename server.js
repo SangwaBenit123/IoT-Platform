@@ -25,6 +25,21 @@ const db = createClient({
     authToken: process.env.TURSO_AUTH_TOKEN,
 });
 
+async function ensureScheduleColumns() {
+    const cols = await db.execute(`PRAGMA table_info(schedules)`);
+    const existing = new Set(cols.rows.map((r) => r.name));
+
+    if (!existing.has('daily_time')) {
+        await db.execute(`ALTER TABLE schedules ADD COLUMN daily_time TEXT`);
+    }
+    if (!existing.has('duration_sec')) {
+        await db.execute(`ALTER TABLE schedules ADD COLUMN duration_sec INTEGER DEFAULT 0`);
+    }
+    if (!existing.has('last_triggered_date')) {
+        await db.execute(`ALTER TABLE schedules ADD COLUMN last_triggered_date TEXT`);
+    }
+}
+
 // Create tables asynchronously on startup with Systems & Projects support
 async function initDB() {
     try {
@@ -63,8 +78,13 @@ async function initDB() {
             device_id TEXT,
             action TEXT,
             execute_at TEXT,
+            daily_time TEXT,
+            duration_sec INTEGER DEFAULT 0,
+            last_triggered_date TEXT,
             FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
         )`);
+
+        await ensureScheduleColumns();
         console.log('Connected to Turso DB successfully and initialized tables with systems support!');
     } catch (err) {
         console.error('Database initialization error:', err.message);
@@ -317,11 +337,21 @@ app.delete('/api/devices/:id', verifyToken, async (req, res) => {
     }
 });
 
-// ================= SCHEDULE / TIMER ROUTES =================
+// ================= SCHEDULE / RECURRING DAILY TIMER ROUTES =================
 
 app.post('/api/schedules', verifyToken, async (req, res) => {
-    const { device_id, action, execute_at } = req.body;
-    if (!device_id || !action || !execute_at) return res.status(400).json({ error: 'Missing schedule parameters' });
+    const { device_id, action, daily_time, duration_sec } = req.body;
+    const parsedDuration = Number(duration_sec);
+
+    if (!device_id || !action || !daily_time || !/^\d{2}:\d{2}$/.test(daily_time)) {
+        return res.status(400).json({ error: 'Device, action, and valid daily time (HH:MM) are required.' });
+    }
+    if (!Number.isFinite(parsedDuration) || parsedDuration < 0) {
+        return res.status(400).json({ error: 'Duration in seconds must be 0 or a positive number.' });
+    }
+    if (!['ON', 'OFF'].includes(action)) {
+        return res.status(400).json({ error: 'Action must be ON or OFF.' });
+    }
 
     try {
         let query = `SELECT * FROM devices WHERE device_id = ?`;
@@ -335,10 +365,11 @@ app.post('/api/schedules', verifyToken, async (req, res) => {
         if (devRs.rows.length === 0) return res.status(403).json({ error: 'Device not found or access denied' });
 
         const schedRs = await db.execute({
-            sql: `INSERT INTO schedules (user_id, device_id, action, execute_at) VALUES (?, ?, ?, ?)`,
-            args: [req.user.id, device_id, action, execute_at]
+            sql: `INSERT INTO schedules (user_id, device_id, action, execute_at, daily_time, duration_sec, last_triggered_date) 
+                  VALUES (?, ?, ?, ?, ?, ?, NULL)`,
+            args: [req.user.id, device_id, action, daily_time, daily_time, Math.floor(parsedDuration)]
         });
-        res.json({ message: 'Schedule created successfully', id: Number(schedRs.lastInsertRowid) });
+        res.json({ message: 'Daily recurring timer created successfully', id: Number(schedRs.lastInsertRowid) });
     } catch (err) {
         res.status(500).json({ error: 'Failed to save schedule' });
     }
@@ -416,31 +447,50 @@ app.get('/api/admin/monitor', verifyToken, async (req, res) => {
     }
 });
 
-// Background Worker to Check and Trigger Schedules every 10 seconds
+function getLocalDateAndTime(date = new Date()) {
+    const pad = (n) => String(n).padStart(2, '0');
+    const today = `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+    const hhmm = `${pad(date.getHours())}:${pad(date.getMinutes())}`;
+    return { today, hhmm };
+}
+
+// Background Worker to Check and Trigger Recurring Daily Schedules every 5 seconds
 setInterval(async () => {
-    const now = new Date().toISOString().slice(0, 16);
+    const { today, hhmm } = getLocalDateAndTime();
     try {
-        const rs = await db.execute({
-            sql: `SELECT * FROM schedules WHERE execute_at <= ?`,
-            args: [now]
-        });
+        const rs = await db.execute(`SELECT * FROM schedules`);
         const rows = rs.rows;
         if (!rows || rows.length === 0) return;
 
         for (const sched of rows) {
+            const targetTime = sched.daily_time || (sched.execute_at && sched.execute_at.slice(-5));
+            if (!targetTime || targetTime !== hhmm) continue;
+            if (sched.last_triggered_date === today) continue;
+
             const controlTopic = `myiot/${sched.device_id}/control`;
-            mqttClient.publish(controlTopic, sched.action);
-            console.log(`⏱️ Automated Timer Triggered: Sent ${sched.action} to ${sched.device_id}`);
+            const primaryAction = sched.action;
+            const durationSec = Number(sched.duration_sec) || 0;
 
             await db.execute({
-                sql: `DELETE FROM schedules WHERE id = ?`,
-                args: [sched.id]
+                sql: `UPDATE schedules SET last_triggered_date = ? WHERE id = ?`,
+                args: [today, sched.id]
             });
+
+            mqttClient.publish(controlTopic, primaryAction);
+            console.log(`⏱️ Daily Timer [${targetTime}] -> ${sched.device_id}: ${primaryAction} (duration: ${durationSec}s)`);
+
+            if (durationSec > 0) {
+                const oppositeAction = primaryAction === 'ON' ? 'OFF' : 'ON';
+                setTimeout(() => {
+                    mqttClient.publish(controlTopic, oppositeAction);
+                    console.log(`⏱️ Timer Duration Ended (${durationSec}s) -> ${sched.device_id}: ${oppositeAction}`);
+                }, durationSec * 1000);
+            }
         }
     } catch (err) {
         console.error('Background worker error:', err);
     }
-}, 10000);
+}, 5000);
 
 // ================= WEBSOCKET SERVER (System Token Auth) =================
 wss.on('connection', (ws) => {

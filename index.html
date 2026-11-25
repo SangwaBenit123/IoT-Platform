@@ -19,7 +19,7 @@
         .card-title-amber { color: #fbbf24; }
         
         /* Input Controls */
-        input[type="text"], input[type="password"], input[type="datetime-local"], select {
+        input[type="text"], input[type="password"], input[type="time"], input[type="number"], select {
             background-color: #0f172a !important;
             color: #f8fafc !important;
             border: 1px solid #475569 !important;
@@ -56,7 +56,7 @@
         
         /* Dynamic Layout Grids */
         .form-row { display: flex; flex-wrap: wrap; gap: 0.75rem; width: 100%; }
-        .flex-1 { flex: 1 1 200px; }
+        .flex-1 { flex: 1 1 180px; }
         .grid-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1rem; }
         
         /* Table Formatting */
@@ -200,19 +200,21 @@
                 <div id="devices-list" class="grid-2"></div>
             </div>
 
-            <!-- Timed Schedules Section -->
+            <!-- Recurring Daily Schedules Section -->
             <div class="card">
-                <h2 class="card-title card-title-amber">⏰ Actuator Scheduling & Timers</h2>
+                <h2 class="card-title card-title-amber">⏰ Recurring Daily Timers (Repeats Every Day)</h2>
                 <form onsubmit="createSchedule(event)" class="form-row">
                     <select id="sched-device-id" required class="flex-1">
-                        <option value="">Select Actuator...</option>
+                        <option value="">Choose Actuator...</option>
                     </select>
-                    <select id="sched-action" required style="width: auto;">
+                    <select id="sched-action" required class="flex-1">
+                        <option value="">Choose Action...</option>
                         <option value="ON">Turn ON</option>
                         <option value="OFF">Turn OFF</option>
                     </select>
-                    <input type="datetime-local" id="sched-time" required class="flex-1">
-                    <button type="submit" class="btn btn-amber">Set Timer</button>
+                    <input type="time" id="sched-time" required class="flex-1" title="Daily Time">
+                    <input type="number" id="sched-duration" min="0" required placeholder="Duration (sec, e.g. 5 or 0)" class="flex-1">
+                    <button type="submit" class="btn btn-amber">Save Daily Timer</button>
                 </form>
 
                 <div style="overflow-x: auto; padding-top: 0.5rem;">
@@ -221,7 +223,8 @@
                             <tr>
                                 <th>Device ID</th>
                                 <th>Action</th>
-                                <th>Scheduled Time</th>
+                                <th>Daily Time</th>
+                                <th>Duration</th>
                                 <th style="text-align: right;">Cancel</th>
                             </tr>
                         </thead>
@@ -508,7 +511,7 @@
                 const scheduleSelect = document.getElementById('sched-device-id');
                 
                 container.innerHTML = '';
-                scheduleSelect.innerHTML = '<option value="">Select Actuator for Timer...</option>';
+                scheduleSelect.innerHTML = '<option value="">Choose Actuator...</option>';
 
                 if (data.length === 0) {
                     container.innerHTML = `<p style="color:#94a3b8; font-size:0.875rem; font-style:italic;">No hardware registered in any system yet.</p>`;
@@ -613,18 +616,21 @@
             e.preventDefault();
             const device_id = document.getElementById('sched-device-id').value;
             const action = document.getElementById('sched-action').value;
-            const execute_at = document.getElementById('sched-time').value;
+            const daily_time = document.getElementById('sched-time').value;
+            const duration_sec = Number(document.getElementById('sched-duration').value);
 
             try {
                 const res = await fetch(API_URL + '/schedules', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                    body: JSON.stringify({ device_id, action, execute_at })
+                    body: JSON.stringify({ device_id, action, daily_time, duration_sec })
                 });
                 const data = await res.json();
                 if (!res.ok) throw new Error(data.error);
 
-                log(`Timer set: ${device_id} to turn ${action} at ${execute_at}`);
+                log(`Daily timer saved: ${device_id} -> ${action} every day at ${daily_time} for ${duration_sec}s`);
+                document.getElementById('sched-time').value = '';
+                document.getElementById('sched-duration').value = '';
                 loadSchedules();
             } catch (err) { alert(err.message); }
         }
@@ -637,16 +643,21 @@
                 tbody.innerHTML = '';
 
                 if (schedules.length === 0) {
-                    tbody.innerHTML = `<tr><td colspan="4" style="padding:0.5rem; color:#64748b; font-style:italic;">No active timers set.</td></tr>`;
+                    tbody.innerHTML = `<tr><td colspan="5" style="padding:0.5rem; color:#64748b; font-style:italic;">No recurring timers set.</td></tr>`;
                     return;
                 }
 
                 schedules.forEach(s => {
+                    const timeDisplay = s.daily_time || (s.execute_at ? s.execute_at.slice(-5) : '--:--');
+                    const durSec = Number(s.duration_sec) || 0;
+                    const durLabel = durSec > 0 ? `${durSec} sec` : 'No auto-revert';
+
                     tbody.innerHTML += `
                         <tr>
                             <td style="font-family:monospace; color:#cbd5e1;">${s.device_id}</td>
                             <td style="font-weight:700; color:${s.action === 'ON' ? '#34d399' : '#fb7185'};">${s.action}</td>
-                            <td style="color:#cbd5e1;">${s.execute_at.replace('T', ' ')}</td>
+                            <td style="color:#cbd5e1;">Every day at ${timeDisplay}</td>
+                            <td style="color:#94a3b8;">${durLabel}</td>
                             <td style="text-align:right;">
                                 <button onclick="deleteSchedule(${s.id})" style="background:none; border:none; color:#fb7185; text-decoration:underline; font-size:0.75rem; cursor:pointer;">Cancel</button>
                             </td>
