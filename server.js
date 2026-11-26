@@ -299,14 +299,20 @@ app.post('/api/devices', verifyToken, async (req, res) => {
 });
 
 app.get('/api/devices', verifyToken, async (req, res) => {
+    const systemId = req.query.system_id;
     try {
-        const rs = await db.execute({
-            sql: `SELECT devices.id, devices.system_id, devices.device_id, devices.name, systems.system_name, systems.system_token 
-                  FROM devices 
-                  JOIN systems ON devices.system_id = systems.id 
-                  WHERE devices.user_id = ?`,
-            args: [req.user.id]
-        });
+        let sql = `SELECT devices.id, devices.system_id, devices.device_id, devices.name, systems.system_name, systems.system_token 
+                   FROM devices 
+                   JOIN systems ON devices.system_id = systems.id 
+                   WHERE devices.user_id = ?`;
+        const args = [req.user.id];
+
+        if (systemId && systemId !== 'all') {
+            sql += ` AND devices.system_id = ?`;
+            args.push(systemId);
+        }
+
+        const rs = await db.execute({ sql, args });
         res.json(rs.rows);
     } catch (err) {
         res.status(500).json({ error: 'Database error' });
@@ -380,22 +386,29 @@ app.post('/api/schedules', verifyToken, async (req, res) => {
 });
 
 app.get('/api/schedules', verifyToken, async (req, res) => {
+    const systemId = req.query.system_id;
     try {
         let query = `
             SELECT schedules.*, systems.system_name 
             FROM schedules 
             LEFT JOIN systems ON schedules.system_id = systems.id
         `;
-        let params = [];
+        const params = [];
+        const conditions = [];
+
         if (req.user.role !== 'admin') {
-            query = `
-                SELECT schedules.*, systems.system_name 
-                FROM schedules 
-                LEFT JOIN systems ON schedules.system_id = systems.id 
-                WHERE schedules.user_id = ?
-            `;
-            params = [req.user.id];
+            conditions.push(`schedules.user_id = ?`);
+            params.push(req.user.id);
         }
+        if (systemId && systemId !== 'all') {
+            conditions.push(`schedules.system_id = ?`);
+            params.push(systemId);
+        }
+
+        if (conditions.length > 0) {
+            query += ` WHERE ` + conditions.join(` AND `);
+        }
+
         const rs = await db.execute({ sql: query, args: params });
         res.json(rs.rows);
     } catch (err) {
