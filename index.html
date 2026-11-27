@@ -1,228 +1,219 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>IoT Multi-Tenant Platform — Systems</title>
-<style>
-    body { background-color: #0f172a; color: #f8fafc; min-height: 100vh; padding: 1.5rem; font-family: sans-serif; margin: 0; }
-    .wrap { max-width: 64rem; margin: 0 auto; display: flex; flex-direction: column; gap: 1.5rem; }
-    header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #334155; padding-bottom: 1rem; gap: 0.75rem; flex-wrap: wrap; }
-    .title { font-size: 1.5rem; font-weight: 700; color: #818cf8; margin: 0; }
-    .subtitle { font-size: 0.875rem; color: #94a3b8; margin: 0.25rem 0 0; }
-    .header-actions { display: flex; align-items: center; gap: 0.625rem; }
-    .logged-in-badge {
-        display: inline-flex; align-items: center; gap: 0.45rem;
-        background: #1e293b; color: #c4b5fd; border: 1px solid #475569;
-        padding: 0.5rem 0.95rem; border-radius: 0.5rem; font-size: 0.875rem; font-weight: 700;
-        cursor: pointer;
-    }
-    .card { background: #1e293b; border: 1px solid #334155; border-radius: 0.75rem; padding: 1.5rem; display: flex; flex-direction: column; gap: 1rem; }
-    .card-title { font-size: 1.125rem; font-weight: 700; color: #818cf8; margin: 0; }
-    input[type="text"], input[type="password"], select {
-        background-color: #0f172a; color: #f8fafc; border: 1px solid #475569;
-        border-radius: 0.5rem; padding: 0.625rem 0.75rem; font-size: 0.875rem; width: 100%; box-sizing: border-box;
-    }
-    .btn { font-weight: 700; padding: 0.625rem 1.25rem; border-radius: 0.5rem; cursor: pointer; border: none; font-size: 0.875rem; }
-    .btn-indigo { background-color: #4f46e5; color: #fff; }
-    .btn-rose { background-color: #e11d48; color: #fff; }
-    .form-row { display: flex; flex-wrap: wrap; gap: 0.75rem; }
-    .flex-1 { flex: 1 1 180px; }
-    .grid-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1rem; }
-    .hidden { display: none !important; }
-    .system-box { background: #0f172a; border: 1px solid #334155; padding: 1rem; border-radius: 0.5rem; display: flex; flex-direction: column; gap: 0.5rem; cursor: pointer; }
-    .system-box:hover { border-color: #818cf8; }
-    .token-badge { background: #020617; color: #fcd34d; font-family: monospace; font-size: 0.75rem; padding: 0.5rem; border-radius: 0.375rem; border: 1px solid #334155; word-break: break-all; }
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IoT Multi-Tenant Platform — Systems</title>
+    <style>
+        body { background-color: #0f172a; color: #f8fafc; min-height: 100vh; padding: 1.5rem; font-family: sans-serif; margin: 0; }
+        .wrap { max-width: 64rem; margin: 0 auto; display: flex; flex-direction: column; gap: 1.5rem; }
+        header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #334155; padding-bottom: 1rem; gap: 0.75rem; flex-wrap: wrap; }
+        .title { font-size: 1.5rem; font-weight: 700; color: #818cf8; margin: 0; }
+        .subtitle { font-size: 0.875rem; color: #94a3b8; margin: 0.25rem 0 0; }
+        .header-actions { display: flex; align-items: center; gap: 0.625rem; }
+        .logged-in-badge {
+            display: inline-flex; align-items: center; gap: 0.45rem;
+            background: #1e293b; color: #c4b5fd; border: 1px solid #475569;
+            padding: 0.5rem 0.95rem; border-radius: 0.5rem; font-size: 0.875rem; font-weight: 700;
+            text-decoration: none; cursor: pointer;
+        }
+        .logged-in-badge:hover { border-color: #818cf8; }
+        .card { background: #1e293b; border: 1px solid #334155; border-radius: 0.75rem; padding: 1.5rem; display: flex; flex-direction: column; gap: 1rem; }
+        .card-title { font-size: 1.125rem; font-weight: 700; color: #818cf8; margin: 0; }
+        input[type="text"], input[type="password"], select {
+            background-color: #0f172a; color: #f8fafc; border: 1px solid #475569;
+            border-radius: 0.5rem; padding: 0.625rem 0.75rem; font-size: 0.875rem; width: 100%; box-sizing: border-box;
+        }
+        .btn { font-weight: 700; padding: 0.625rem 1.25rem; border-radius: 0.5rem; cursor: pointer; border: none; font-size: 0.875rem; }
+        .btn-indigo { background-color: #4f46e5; color: #fff; }
+        .btn-rose { background-color: #e11d48; color: #fff; }
+        .form-row { display: flex; flex-wrap: wrap; gap: 0.75rem; }
+        .flex-1 { flex: 1 1 180px; }
+        .grid-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1rem; }
+        .hidden { display: none !important; }
+        .system-box { background: #0f172a; border: 1px solid #334155; padding: 1rem; border-radius: 0.5rem; display: flex; flex-direction: column; gap: 0.5rem; cursor: pointer; }
+        .system-box:hover { border-color: #818cf8; }
+        .token-badge { background: #020617; color: #fcd34d; font-family: monospace; font-size: 0.75rem; padding: 0.5rem; border-radius: 0.375rem; border: 1px solid #334155; word-break: break-all; }
+    </style>
 </head>
 <body>
-<div class="wrap">
-    <header>
-        <div>
-            <h1 class="title">⚡ IoT Multi-Tenant Platform</h1>
-            <p class="subtitle">Select a System to Open Its Devices & Timers</p>
-        </div>
-        <div class="header-actions">
-            <button type="button" id="logged-in-badge" onclick="showSessionStatus()" class="logged-in-badge hidden" title="Active session">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="#7e22ce" aria-hidden="true">
-                    <circle cx="12" cy="8" r="4"/>
-                    <path d="M4 20c0-3.3 3.6-6 8-6s8 2.7 8 6v1H4v-1z"/>
-                </svg>
-                <span id="logged-in-label">Logged In</span>
-            </button>
-            <button type="button" id="logout-btn" onclick="logout()" class="btn btn-rose hidden">Log Out</button>
-        </div>
-    </header>
+    <div class="wrap">
+        <header>
+            <div>
+                <h1 class="title">⚡ IoT Multi-Tenant Platform</h1>
+                <p class="subtitle">Select a System to Open Its Devices & Timers</p>
+            </div>
+            <div class="header-actions">
+                <a id="logged-in-badge" href="account.html" class="logged-in-badge hidden" title="View or edit account information">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="#7e22ce" aria-hidden="true">
+                        <circle cx="12" cy="8" r="4"/>
+                        <path d="M4 20c0-3.3 3.6-6 8-6s8 2.7 8 6v1H4v-1z"/>
+                    </svg>
+                    <span id="logged-in-label">Logged In</span>
+                </a>
+                <button type="button" id="logout-btn" onclick="logout()" class="btn btn-rose hidden">Log Out</button>
+            </div>
+        </header>
 
-    <div id="auth-card" class="card" style="max-width: 28rem; margin: 2rem auto; width: 100%;">
-        <div style="display: flex; border-bottom: 1px solid #334155; margin-bottom: 0.5rem;">
-            <button type="button" id="tab-login" onclick="switchAuthTab('login')" style="flex:1; padding:0.5rem; background:none; border:none; border-bottom:2px solid #6366f1; color:#818cf8; font-weight:700; cursor:pointer;">Login</button>
-            <button type="button" id="tab-register" onclick="switchAuthTab('register')" style="flex:1; padding:0.5rem; background:none; border:none; color:#94a3b8; font-weight:700; cursor:pointer;">Register</button>
-        </div>
-        <form id="auth-form" onsubmit="handleAuth(event)" style="display:flex; flex-direction:column; gap:1rem;">
-            <input type="text" id="auth-username" placeholder="Username" required>
-            <input type="password" id="auth-password" placeholder="Password" required>
-            <button type="submit" id="auth-btn" class="btn btn-indigo">Login</button>
-            <p id="auth-error" style="color:#fb7185; font-size:0.75rem; margin:0;" class="hidden"></p>
-        </form>
-    </div>
-
-    <div id="dashboard" class="hidden" style="display:flex; flex-direction:column; gap:1.5rem;">
-        <div class="card">
-            <h2 class="card-title">🏗️ Create IoT System / Project</h2>
-            <form onsubmit="createSystem(event)" class="form-row">
-                <input type="text" id="system-name" placeholder="System Name (e.g. Smart Greenhouse)" required class="flex-1">
-                <select id="hardware-type" style="width:auto;">
-                    <option value="ESP32">ESP32</option>
-                    <option value="ESP8266">ESP8266</option>
-                    <option value="Arduino">Arduino</option>
-                </select>
-                <button type="submit" class="btn btn-indigo">Create System</button>
+        <div id="auth-card" class="card" style="max-width: 28rem; margin: 2rem auto; width: 100%;">
+            <div style="display: flex; border-bottom: 1px solid #334155; margin-bottom: 0.5rem;">
+                <button type="button" id="tab-login" onclick="switchAuthTab('login')" style="flex:1; padding:0.5rem; background:none; border:none; border-bottom:2px solid #6366f1; color:#818cf8; font-weight:700; cursor:pointer;">Login</button>
+                <button type="button" id="tab-register" onclick="switchAuthTab('register')" style="flex:1; padding:0.5rem; background:none; border:none; color:#94a3b8; font-weight:700; cursor:pointer;">Register</button>
+            </div>
+            <form id="auth-form" onsubmit="handleAuth(event)" style="display:flex; flex-direction:column; gap:1rem;">
+                <input type="text" id="auth-username" placeholder="Username" required>
+                <input type="password" id="auth-password" placeholder="Password" required>
+                <button type="submit" id="auth-btn" class="btn btn-indigo">Login</button>
+                <p id="auth-error" style="color:#fb7185; font-size:0.75rem; margin:0;" class="hidden"></p>
             </form>
         </div>
 
-        <div class="card">
-            <h2 class="card-title">Your Systems</h2>
-            <div id="systems-list" class="grid-2"></div>
+        <div id="dashboard" class="hidden" style="display:flex; flex-direction:column; gap:1.5rem;">
+            <div class="card">
+                <h2 class="card-title">🏗️ Create IoT System / Project</h2>
+                <form onsubmit="createSystem(event)" class="form-row">
+                    <input type="text" id="system-name" placeholder="System Name (e.g. Smart Greenhouse)" required class="flex-1">
+                    <select id="hardware-type" style="width:auto;">
+                        <option value="ESP32">ESP32</option>
+                        <option value="ESP8266">ESP8266</option>
+                        <option value="Arduino">Arduino</option>
+                    </select>
+                    <button type="submit" class="btn btn-indigo">Create System</button>
+                </form>
+            </div>
+
+            <div class="card">
+                <h2 class="card-title">Your Systems</h2>
+                <div id="systems-list" class="grid-2"></div>
+            </div>
         </div>
     </div>
-</div>
 
-<script>
-    const API_URL = window.location.hostname === 'localhost' ? 'http://localhost:3000/api' : '/api';
-    let token = localStorage.getItem('iot_token');
-    let currentMode = 'login';
-    let currentAccount = null;
+    <script>
+        const API_URL = window.location.hostname === 'localhost' ? 'http://localhost:3000/api' : '/api';
+        let token = localStorage.getItem('iot_token');
+        let currentMode = 'login';
 
-    function switchAuthTab(mode) {
-        currentMode = mode;
-        document.getElementById('auth-error').classList.add('hidden');
-        document.getElementById('tab-login').style.borderBottom = mode === 'login' ? '2px solid #6366f1' : 'none';
-        document.getElementById('tab-login').style.color = mode === 'login' ? '#818cf8' : '#94a3b8';
-        document.getElementById('tab-register').style.borderBottom = mode === 'register' ? '2px solid #6366f1' : 'none';
-        document.getElementById('tab-register').style.color = mode === 'register' ? '#818cf8' : '#94a3b8';
-        document.getElementById('auth-btn').innerText = mode === 'login' ? 'Login' : 'Register Account';
-    }
+        function switchAuthTab(mode) {
+            currentMode = mode;
+            document.getElementById('auth-error').classList.add('hidden');
+            document.getElementById('tab-login').style.borderBottom = mode === 'login' ? '2px solid #6366f1' : 'none';
+            document.getElementById('tab-login').style.color = mode === 'login' ? '#818cf8' : '#94a3b8';
+            document.getElementById('tab-register').style.borderBottom = mode === 'register' ? '2px solid #6366f1' : 'none';
+            document.getElementById('tab-register').style.color = mode === 'register' ? '#818cf8' : '#94a3b8';
+            document.getElementById('auth-btn').innerText = mode === 'login' ? 'Login' : 'Register Account';
+        }
 
-    async function verifySession() {
-        if (!token) return false;
-        const res = await fetch(API_URL + '/account', {
-            headers: { Authorization: `Bearer ${token}` }
-        });
-        if (!res.ok) {
+        async function verifySession() {
+            if (!token) return false;
+            const res = await fetch(API_URL + '/account', {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            if (!res.ok) {
+                localStorage.removeItem('iot_token');
+                token = null;
+                return false;
+            }
+            const account = await res.json();
+            if (account && account.username) {
+                document.getElementById('logged-in-label').innerText = `Logged In (${account.username})`;
+            }
+            return true;
+        }
+
+        async function handleAuth(e) {
+            e.preventDefault();
+            const username = document.getElementById('auth-username').value;
+            const password = document.getElementById('auth-password').value;
+            const errEl = document.getElementById('auth-error');
+            errEl.classList.add('hidden');
+            try {
+                const res = await fetch(API_URL + (currentMode === 'login' ? '/login' : '/register'), {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password })
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error || 'Authentication failed');
+                if (currentMode === 'register') {
+                    alert('Registration successful! Please log in.');
+                    switchAuthTab('login');
+                } else {
+                    token = data.token;
+                    localStorage.setItem('iot_token', token);
+                    await initDashboard();
+                }
+            } catch (err) {
+                errEl.innerText = err.message;
+                errEl.classList.remove('hidden');
+            }
+        }
+
+        function logout() {
             localStorage.removeItem('iot_token');
             token = null;
-            return false;
+            location.reload();
         }
-        currentAccount = await res.json();
-        if (currentAccount && currentAccount.username) {
-            document.getElementById('logged-in-label').innerText = `Logged In (${currentAccount.username})`;
-        }
-        return true;
-    }
 
-    function showSessionStatus() {
-        if (currentAccount) {
-            alert(`Logged in as ${currentAccount.username} (${currentAccount.role || 'user'})`);
-        } else {
-            alert('Session is active.');
+        function openSystemPage(systemId) {
+            window.location.href = `system.html?system_id=${encodeURIComponent(systemId)}`;
         }
-    }
 
-    async function handleAuth(e) {
-        e.preventDefault();
-        const username = document.getElementById('auth-username').value;
-        const password = document.getElementById('auth-password').value;
-        const errEl = document.getElementById('auth-error');
-        errEl.classList.add('hidden');
-        try {
-            const res = await fetch(API_URL + (currentMode === 'login' ? '/login' : '/register'), {
+        async function loadSystems() {
+            const res = await fetch(API_URL + '/systems', { headers: { Authorization: `Bearer ${token}` } });
+            if (res.status === 401 || res.status === 403) {
+                logout();
+                return;
+            }
+            const systems = await res.json();
+            const list = document.getElementById('systems-list');
+            list.innerHTML = '';
+            if (!Array.isArray(systems) || systems.length === 0) {
+                list.innerHTML = `<p style="color:#94a3b8; font-size:0.875rem;">No systems yet. Create one above.</p>`;
+                return;
+            }
+            systems.forEach(sys => {
+                list.innerHTML += `
+                    <div onclick="openSystemPage('${sys.id}')" class="system-box">
+                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                            <div>
+                                <h3 style="margin:0; font-size:1rem;">${sys.system_name}</h3>
+                                <span style="font-size:0.75rem; color:#818cf8; font-weight:600;">${sys.hardware_type}</span>
+                            </div>
+                            <span style="font-size:0.75rem; color:#34d399; font-weight:700;">Open Page →</span>
+                        </div>
+                        <div class="token-badge">Token: ${sys.system_token}</div>
+                    </div>
+                `;
+            });
+        }
+
+        async function createSystem(e) {
+            e.preventDefault();
+            const system_name = document.getElementById('system-name').value;
+            const hardware_type = document.getElementById('hardware-type').value;
+            const res = await fetch(API_URL + '/systems', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ username, password })
+                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                body: JSON.stringify({ system_name, hardware_type })
             });
             const data = await res.json();
-            if (!res.ok) throw new Error(data.error || 'Authentication failed');
-            if (currentMode === 'register') {
-                alert('Registration successful! Please log in.');
-                switchAuthTab('login');
-            } else {
-                token = data.token;
-                localStorage.setItem('iot_token', token);
-                await initDashboard();
-            }
-        } catch (err) {
-            errEl.innerText = err.message;
-            errEl.classList.remove('hidden');
+            if (!res.ok) return alert(data.error || 'Failed to create system');
+            document.getElementById('system-name').value = '';
+            await loadSystems();
         }
-    }
 
-    function logout() {
-        localStorage.removeItem('iot_token');
-        token = null;
-        currentAccount = null;
-        location.reload();
-    }
-
-    function openSystemPage(systemId) {
-        window.location.href = `system.html?system_id=${encodeURIComponent(systemId)}`;
-    }
-
-    async function loadSystems() {
-        const res = await fetch(API_URL + '/systems', { headers: { Authorization: `Bearer ${token}` } });
-        if (res.status === 401 || res.status === 403) {
-            logout();
-            return;
+        async function initDashboard() {
+            const valid = await verifySession();
+            if (!valid) return;
+            document.getElementById('auth-card').classList.add('hidden');
+            document.getElementById('dashboard').classList.remove('hidden');
+            document.getElementById('logged-in-badge').classList.remove('hidden');
+            document.getElementById('logout-btn').classList.remove('hidden');
+            await loadSystems();
         }
-        const systems = await res.json();
-        const list = document.getElementById('systems-list');
-        list.innerHTML = '';
-        if (!Array.isArray(systems) || systems.length === 0) {
-            list.innerHTML = `<p style="color:#94a3b8; font-size:0.875rem;">No systems yet. Create one above.</p>`;
-            return;
-        }
-        systems.forEach(sys => {
-            list.innerHTML += `
-                <div onclick="openSystemPage('${sys.id}')" class="system-box">
-                    <div style="display:flex; justify-content:space-between; align-items:center;">
-                        <div>
-                            <h3 style="margin:0; font-size:1rem;">${sys.system_name}</h3>
-                            <span style="font-size:0.75rem; color:#818cf8; font-weight:600;">${sys.hardware_type}</span>
-                        </div>
-                        <span style="font-size:0.75rem; color:#34d399; font-weight:700;">Open Page →</span>
-                    </div>
-                    <div class="token-badge">Token: ${sys.system_token}</div>
-                </div>
-            `;
-        });
-    }
 
-    async function createSystem(e) {
-        e.preventDefault();
-        const system_name = document.getElementById('system-name').value;
-        const hardware_type = document.getElementById('hardware-type').value;
-        const res = await fetch(API_URL + '/systems', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-            body: JSON.stringify({ system_name, hardware_type })
-        });
-        const data = await res.json();
-        if (!res.ok) return alert(data.error || 'Failed to create system');
-        document.getElementById('system-name').value = '';
-        await loadSystems();
-    }
-
-    async function initDashboard() {
-        const valid = await verifySession();
-        if (!valid) return;
-        document.getElementById('auth-card').classList.add('hidden');
-        document.getElementById('dashboard').classList.remove('hidden');
-        document.getElementById('logged-in-badge').classList.remove('hidden');
-        document.getElementById('logout-btn').classList.remove('hidden');
-        await loadSystems();
-    }
-
-    if (token) initDashboard();
-</script>
+        if (token) initDashboard();
+    </script>
 </body>
 </html>

@@ -17,7 +17,7 @@ app.use(express.static(__dirname));
 const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
 
-const JWT_SECRET = 'super_secret_iot_key_123';
+const JWT_SECRET = process.env.JWT_SECRET || 'super_secret_iot_key_123';
 
 // Initialize Turso Cloud Database Client
 const db = createClient({
@@ -159,8 +159,8 @@ app.post('/api/login', async (req, res) => {
         });
 
         const token = jwt.sign(
-            { id: user.id, username: user.username, role: user.role || 'user' }, 
-            JWT_SECRET, 
+            { id: user.id, username: user.username, role: user.role || 'user' },
+            JWT_SECRET,
             { expiresIn: '24h' }
         );
         res.json({ message: 'Login successful', token, role: user.role || 'user' });
@@ -443,7 +443,7 @@ app.get('/api/admin/users', verifyToken, async (req, res) => {
 app.delete('/api/admin/users/:id', verifyToken, async (req, res) => {
     if (req.user.role !== 'admin') return res.status(403).json({ error: 'Access denied.' });
     const userIdToDelete = req.params.id;
-    if (parseInt(userIdToDelete) === req.user.id) {
+    if (parseInt(userIdToDelete, 10) === req.user.id) {
         return res.status(400).json({ error: 'Cannot delete your own active admin account.' });
     }
 

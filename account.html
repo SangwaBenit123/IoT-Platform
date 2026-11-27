@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Account Settings — IoT Multi-Tenant Platform</title>
+    <style>
+        body { background-color: #0f172a; color: #f8fafc; min-height: 100vh; padding: 1.5rem; font-family: sans-serif; margin: 0; }
+        .wrap { max-width: 48rem; margin: 0 auto; display: flex; flex-direction: column; gap: 1.5rem; }
+        header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #334155; padding-bottom: 1rem; gap: 0.75rem; flex-wrap: wrap; }
+        .title { font-size: 1.5rem; font-weight: 700; color: #818cf8; margin: 0; }
+        .subtitle { font-size: 0.875rem; color: #94a3b8; margin: 0.25rem 0 0; }
+        .header-actions { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+        .card { background: #1e293b; border: 1px solid #334155; border-radius: 0.75rem; padding: 1.5rem; display: flex; flex-direction: column; gap: 1rem; }
+        .card-title { font-size: 1.125rem; font-weight: 700; color: #818cf8; margin: 0; }
+        .info-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 0.75rem; }
+        .info-box { background: #0f172a; border: 1px solid #334155; border-radius: 0.5rem; padding: 0.875rem; }
+        .info-label { font-size: 0.75rem; color: #94a3b8; margin-bottom: 0.25rem; }
+        .info-value { font-size: 0.95rem; font-weight: 700; color: #f8fafc; word-break: break-word; }
+        .field { display: flex; flex-direction: column; gap: 0.375rem; }
+        label { font-size: 0.8rem; color: #cbd5e1; font-weight: 600; }
+        input {
+            background-color: #0f172a; color: #f8fafc; border: 1px solid #475569;
+            border-radius: 0.5rem; padding: 0.625rem 0.75rem; font-size: 0.875rem; width: 100%; box-sizing: border-box;
+        }
+        .btn { font-weight: 700; padding: 0.625rem 1.25rem; border-radius: 0.5rem; cursor: pointer; border: none; font-size: 0.875rem; text-decoration: none; display: inline-flex; align-items: center; justify-content: center; }
+        .btn-ghost { background: #1e293b; color: #e2e8f0; border: 1px solid #475569; }
+        .btn-indigo { background: #4f46e5; color: #fff; }
+        .btn-rose { background: #e11d48; color: #fff; }
+        .msg-ok { color: #34d399; font-size: 0.85rem; margin: 0; }
+        .msg-err { color: #fb7185; font-size: 0.85rem; margin: 0; }
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body>
+    <div class="wrap">
+        <header>
+            <div>
+                <h1 class="title">👤 Account Information & Settings</h1>
+                <p class="subtitle">View your profile details and update your username or password</p>
+            </div>
+            <div class="header-actions">
+                <a href="index.html" class="btn btn-ghost">← Back to Systems</a>
+                <button type="button" onclick="logout()" class="btn btn-rose">Log Out</button>
+            </div>
+        </header>
+
+        <div class="card">
+            <h2 class="card-title">Current Account Information</h2>
+            <div class="info-grid">
+                <div class="info-box">
+                    <div class="info-label">Username</div>
+                    <div id="acc-username" class="info-value">Loading...</div>
+                </div>
+                <div class="info-box">
+                    <div class="info-label">Role</div>
+                    <div id="acc-role" class="info-value">Loading...</div>
+                </div>
+                <div class="info-box">
+                    <div class="info-label">User ID</div>
+                    <div id="acc-id" class="info-value">Loading...</div>
+                </div>
+                <div class="info-box">
+                    <div class="info-label">Last Login</div>
+                    <div id="acc-last-login" class="info-value">Loading...</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2 class="card-title">Update Account Information</h2>
+            <form onsubmit="updateAccount(event)" style="display: flex; flex-direction: column; gap: 1rem;">
+                <div class="field">
+                    <label for="edit-username">New Username</label>
+                    <input type="text" id="edit-username" required>
+                </div>
+                <div class="field">
+                    <label for="current-password">Current Password (required only if changing password)</label>
+                    <input type="password" id="current-password" placeholder="Enter current password">
+                </div>
+                <div class="field">
+                    <label for="new-password">New Password (leave blank to keep current password)</label>
+                    <input type="password" id="new-password" placeholder="Enter new password">
+                </div>
+                <div>
+                    <button type="submit" class="btn btn-indigo">Save Account Changes</button>
+                </div>
+                <p id="acc-status" class="msg-ok hidden"></p>
+                <p id="acc-error" class="msg-err hidden"></p>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = window.location.hostname === 'localhost' ? 'http://localhost:3000/api' : '/api';
+        const token = localStorage.getItem('iot_token');
+
+        if (!token) {
+            window.location.href = 'index.html';
+        }
+
+        function logout() {
+            localStorage.removeItem('iot_token');
+            window.location.href = 'index.html';
+        }
+
+        function setStatus(msg) {
+            const okEl = document.getElementById('acc-status');
+            const errEl = document.getElementById('acc-error');
+            errEl.classList.add('hidden');
+            okEl.innerText = msg;
+            okEl.classList.remove('hidden');
+        }
+
+        function setError(msg) {
+            const okEl = document.getElementById('acc-status');
+            const errEl = document.getElementById('acc-error');
+            okEl.classList.add('hidden');
+            errEl.innerText = msg;
+            errEl.classList.remove('hidden');
+        }
+
+        async function loadAccount() {
+            const res = await fetch(API_URL + '/account', {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            if (res.status === 401 || res.status === 403) {
+                logout();
+                return;
+            }
+            const data = await res.json();
+            if (!res.ok) {
+                setError(data.error || 'Failed to load account information.');
+                return;
+            }
+            document.getElementById('acc-username').innerText = data.username || '-';
+            document.getElementById('acc-role').innerText = data.role || 'user';
+            document.getElementById('acc-id').innerText = data.id ?? '-';
+            document.getElementById('acc-last-login').innerText = data.last_login || 'Never';
+            document.getElementById('edit-username').value = data.username || '';
+        }
+
+        async function updateAccount(e) {
+            e.preventDefault();
+            const username = document.getElementById('edit-username').value.trim();
+            const current_password = document.getElementById('current-password').value;
+            const new_password = document.getElementById('new-password').value;
+
+            const payload = { username };
+            if (new_password) {
+                payload.current_password = current_password;
+                payload.new_password = new_password;
+            }
+
+            const res = await fetch(API_URL + '/account', {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${token}`
+                },
+                body: JSON.stringify(payload)
+            });
+            const data = await res.json();
+            if (!res.ok) {
+                setError(data.error || 'Failed to update account.');
+                return;
+            }
+
+            document.getElementById('current-password').value = '';
+            document.getElementById('new-password').value = '';
+            setStatus(data.message || 'Account updated successfully.');
+            await loadAccount();
+        }
+
+        loadAccount();
+    </script>
+</body>
+</html>
