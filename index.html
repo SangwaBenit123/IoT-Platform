@@ -3,379 +3,148 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>IoT Multi-Tenant Platform</title>
+    <title>IoT Multi-Tenant Platform — Systems</title>
     <style>
+        body { background-color: #0f172a; color: #f8fafc; min-height: 100vh; padding: 1.5rem; font-family: sans-serif; margin: 0; }
+        .wrap { max-width: 64rem; margin: 0 auto; display: flex; flex-direction: column; gap: 1.5rem; }
         header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #334155; padding-bottom: 1rem; }
-        .title { font-size: 1.5rem; font-weight: 700; color: #818cf8; }
-        .subtitle { font-size: 0.875rem; color: #94a3b8; }
-        .user-badge { font-size: 0.875rem; font-weight: 600; color: #a5b4fc; background: #1e293b; border: 1px solid #334155; padding: 0.375rem 0.75rem; border-radius: 0.5rem; cursor: pointer; transition: 0.2s; }
-        .user-badge:hover { background: #334155; }
-        .card { background: #1e293b; border: 1px solid #334155; border-radius: 0.75rem; padding: 1.5rem; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.5); display: flex; flex-direction: column; gap: 1rem; }
-        .card-title { font-size: 1.125rem; font-weight: 700; color: #818cf8; }
-        .card-title-emerald { color: #34d399; }
-        .card-title-amber { color: #fbbf24; }
-        input[type="text"], input[type="password"], input[type="time"], input[type="number"], select {
-            background-color: #0f172a !important; color: #f8fafc !important; border: 1px solid #475569 !important;
-            border-radius: 0.5rem; padding: 0.625rem 0.75rem; font-size: 0.875rem; outline: none; width: 100%;
+        .title { font-size: 1.5rem; font-weight: 700; color: #818cf8; margin: 0; }
+        .subtitle { font-size: 0.875rem; color: #94a3b8; margin: 0.25rem 0 0; }
+        .card { background: #1e293b; border: 1px solid #334155; border-radius: 0.75rem; padding: 1.5rem; display: flex; flex-direction: column; gap: 1rem; }
+        .card-title { font-size: 1.125rem; font-weight: 700; color: #818cf8; margin: 0; }
+        input[type="text"], input[type="password"], select {
+            background-color: #0f172a; color: #f8fafc; border: 1px solid #475569;
+            border-radius: 0.5rem; padding: 0.625rem 0.75rem; font-size: 0.875rem; width: 100%; box-sizing: border-box;
         }
-        input:focus, select:focus { border-color: #6366f1 !important; box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2); }
-        .btn { font-weight: 700; padding: 0.625rem 1.25rem; border-radius: 0.5rem; cursor: pointer; transition: all 0.2s ease-in-out; font-size: 0.875rem; text-align: center; border: none; display: inline-flex; justify-content: center; align-items: center; }
-        .btn-indigo { background-color: #4f46e5; color: #ffffff !important; border: 1px solid #6366f1; }
-        .btn-indigo:hover { background-color: #4338ca; }
-        .btn-emerald { background-color: #059669; color: #ffffff !important; border: 1px solid #10b981; }
-        .btn-emerald:hover { background-color: #047857; }
-        .btn-amber { background-color: #d97706; color: #ffffff !important; border: 1px solid #f59e0b; }
-        .btn-amber:hover { background-color: #b45309; }
-        .btn-rose { background-color: #e11d48; color: #ffffff !important; border: 1px solid #f43f5e; }
-        .btn-rose:hover { background-color: #be123c; }
-        .form-row { display: flex; flex-wrap: wrap; gap: 0.75rem; width: 100%; }
-        .flex-1 { flex: 1 1 170px; }
+        .btn { font-weight: 700; padding: 0.625rem 1.25rem; border-radius: 0.5rem; cursor: pointer; border: none; font-size: 0.875rem; }
+        .btn-indigo { background-color: #4f46e5; color: #fff; }
+        .btn-rose { background-color: #e11d48; color: #fff; }
+        .form-row { display: flex; flex-wrap: wrap; gap: 0.75rem; }
+        .flex-1 { flex: 1 1 180px; }
         .grid-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1rem; }
-        table { width: 100%; border-collapse: collapse; text-align: left; font-size: 0.875rem; }
-        th { border-bottom: 1px solid #334155; padding: 0.75rem; color: #94a3b8; font-weight: 600; }
-        td { border-bottom: 1px solid #1e293b; padding: 0.75rem; color: #cbd5e1; }
         .hidden { display: none !important; }
-        .system-box { background: #0f172a; border: 1px solid #334155; padding: 0.875rem; border-radius: 0.5rem; display: flex; flex-direction: column; gap: 0.5rem; cursor: pointer; transition: 0.2s; }
-        .system-box:hover { border-color: #6366f1; background: #131c31; }
-        .system-box.active { border-color: #818cf8; box-shadow: 0 0 0 2px rgba(129, 140, 248, 0.35); background: #172038; }
-        .token-badge { background: #020617; color: #fcd34d; font-family: monospace; font-size: 0.75rem; padding: 0.5rem; border-radius: 0.375rem; border: 1px solid #334155; overflow: hidden; text-overflow: ellipsis; }
-        .log-console { background: #020617; border: 1px solid #334155; border-radius: 0.5rem; padding: 1rem; font-family: monospace; font-size: 0.75rem; color: #34d399; height: 8rem; overflow-y: auto; }
-        .modal-overlay { position: fixed; inset: 0; background: rgba(2, 6, 23, 0.85); backdrop-filter: blur(4px); z-index: 50; display: flex; align-items: center; justify-content: center; padding: 1rem; }
+        .system-box { background: #0f172a; border: 1px solid #334155; padding: 1rem; border-radius: 0.5rem; display: flex; flex-direction: column; gap: 0.5rem; cursor: pointer; }
+        .system-box:hover { border-color: #818cf8; }
+        .token-badge { background: #020617; color: #fcd34d; font-family: monospace; font-size: 0.75rem; padding: 0.5rem; border-radius: 0.375rem; border: 1px solid #334155; word-break: break-all; }
     </style>
 </head>
-<body style="background-color: #0f172a; color: #f8fafc; min-height: 100vh; padding: 1.5rem; font-family: sans-serif;">
-    <div style="max-width: 64rem; margin: 0 auto; display: flex; flex-direction: column; gap: 1.5rem;">
+<body>
+    <div class="wrap">
         <header>
             <div>
                 <h1 class="title">⚡ IoT Multi-Tenant Platform</h1>
-                <p class="subtitle">Multi-System Projects & Timed Automation</p>
+                <p class="subtitle">Select a System to Open Its Devices & Timers</p>
             </div>
-            <div id="user-status" onclick="toggleAccountModal(true)" class="user-badge hidden">👤 Logged In</div>
+            <button id="logout-btn" onclick="logout()" class="btn btn-rose hidden">Log Out</button>
         </header>
 
-        <div id="account-modal" class="modal-overlay hidden">
-            <div class="card" style="max-width: 32rem; width: 100%;">
-                <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #334155; padding-bottom: 0.75rem;">
-                    <h2 class="card-title">👤 My Account Information & Credentials</h2>
-                    <button onclick="toggleAccountModal(false)" style="background:none; border:none; color:#94a3b8; font-size:1.5rem; cursor:pointer;">&times;</button>
-                </div>
-                <form id="accountForm" onsubmit="updateAccount(event)" style="display: flex; flex-direction: column; gap: 1rem;">
-                    <div>
-                        <label style="font-size: 0.875rem; color: #cbd5e1; display: block; margin-bottom: 0.25rem;">Username</label>
-                        <input type="text" id="account-username" required>
-                    </div>
-                    <div>
-                        <label style="font-size: 0.875rem; color: #cbd5e1; display: block; margin-bottom: 0.25rem;">Current Password <span style="font-size:0.75rem; color:#64748b;">(to change password)</span></label>
-                        <input type="password" id="current-password" placeholder="••••••••">
-                    </div>
-                    <div>
-                        <label style="font-size: 0.875rem; color: #cbd5e1; display: block; margin-bottom: 0.25rem;">New Password <span style="font-size:0.75rem; color:#64748b;">(optional)</span></label>
-                        <input type="password" id="new-password" placeholder="••••••••">
-                    </div>
-                    <div style="display: flex; justify-content: flex-end; gap: 0.75rem; padding-top: 0.5rem;">
-                        <button type="button" onclick="toggleAccountModal(false)" class="btn" style="background:#334155; color:#f8fafc;">Cancel</button>
-                        <button type="submit" class="btn btn-indigo">Save Changes</button>
-                    </div>
-                </form>
-            </div>
-        </div>
-
         <div id="auth-card" class="card" style="max-width: 28rem; margin: 2rem auto; width: 100%;">
-            <div style="display: flex; border-bottom: 1px solid #334155; margin-bottom: 1rem;">
-                <button id="tab-login" onclick="switchAuthTab('login')" style="flex: 1; padding: 0.5rem; background: none; border: none; border-bottom: 2px solid #6366f1; color: #818cf8; font-weight: 700; cursor: pointer;">Login</button>
-                <button id="tab-register" onclick="switchAuthTab('register')" style="flex: 1; padding: 0.5rem; background: none; border: none; color: #94a3b8; font-weight: 700; cursor: pointer;">Register</button>
+            <div style="display: flex; border-bottom: 1px solid #334155; margin-bottom: 0.5rem;">
+                <button id="tab-login" onclick="switchAuthTab('login')" style="flex:1; padding:0.5rem; background:none; border:none; border-bottom:2px solid #6366f1; color:#818cf8; font-weight:700; cursor:pointer;">Login</button>
+                <button id="tab-register" onclick="switchAuthTab('register')" style="flex:1; padding:0.5rem; background:none; border:none; color:#94a3b8; font-weight:700; cursor:pointer;">Register</button>
             </div>
-            <form id="auth-form" onsubmit="handleAuth(event)" style="display: flex; flex-direction: column; gap: 1rem;">
-                <div>
-                    <label style="font-size: 0.875rem; color: #cbd5e1; display: block; margin-bottom: 0.25rem;">Username</label>
-                    <input type="text" id="auth-username" required>
-                </div>
-                <div>
-                    <label style="font-size: 0.875rem; color: #cbd5e1; display: block; margin-bottom: 0.25rem;">Password</label>
-                    <input type="password" id="auth-password" required>
-                </div>
-                <button type="submit" id="auth-btn" class="btn btn-indigo" style="width: 100%;">Login</button>
-                <p id="auth-error" style="color: #fb7185; font-size: 0.75rem; font-weight: 600;" class="hidden"></p>
+            <form id="auth-form" onsubmit="handleAuth(event)" style="display:flex; flex-direction:column; gap:1rem;">
+                <input type="text" id="auth-username" placeholder="Username" required>
+                <input type="password" id="auth-password" placeholder="Password" required>
+                <button type="submit" id="auth-btn" class="btn btn-indigo">Login</button>
+                <p id="auth-error" style="color:#fb7185; font-size:0.75rem; margin:0;" class="hidden"></p>
             </form>
         </div>
 
-        <div id="dashboard" class="hidden" style="display: flex; flex-direction: column; gap: 1.5rem;">
-            <div id="system-card" class="card">
+        <div id="dashboard" class="hidden" style="display:flex; flex-direction:column; gap:1.5rem;">
+            <div class="card">
                 <h2 class="card-title">🏗️ Create IoT System / Project</h2>
                 <form onsubmit="createSystem(event)" class="form-row">
                     <input type="text" id="system-name" placeholder="System Name (e.g. Smart Greenhouse)" required class="flex-1">
-                    <select id="hardware-type" style="width: auto;">
+                    <select id="hardware-type" style="width:auto;">
                         <option value="ESP32">ESP32</option>
                         <option value="ESP8266">ESP8266</option>
                         <option value="Arduino">Arduino</option>
                     </select>
                     <button type="submit" class="btn btn-indigo">Create System</button>
                 </form>
-                <div style="padding-top: 0.5rem;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
-                        <h3 style="font-size: 0.875rem; color: #cbd5e1;">Click a System to View Its Devices & Timers:</h3>
-                        <button id="close-system-btn" onclick="selectSystem(null)" style="background:none; border:none; color:#fb7185; text-decoration:underline; font-size:0.75rem; cursor:pointer;" class="hidden">Close System</button>
-                    </div>
-                    <div id="systems-list" class="grid-2"></div>
-                </div>
-            </div>
-
-            <div id="provision-card" class="card">
-                <h2 class="card-title card-title-emerald">➕ Register Device or Sensor to System</h2>
-                <form onsubmit="registerDevice(event)" class="form-row">
-                    <select id="device-system-id" required class="flex-1"><option value="">Select System...</option></select>
-                    <input type="text" id="new-device-id" placeholder="Device ID (e.g. temp_sensor_1)" required class="flex-1">
-                    <input type="text" id="new-device-name" placeholder="Name (e.g. Greenhouse Sensor)" required class="flex-1">
-                    <button type="submit" class="btn btn-emerald">Add Device</button>
-                </form>
-            </div>
-
-            <div id="admin-users-section" class="card hidden">
-                <h2 class="card-title">🛡️ User Accounts Management</h2>
-                <div style="overflow-x: auto;">
-                    <table>
-                        <thead><tr><th>ID</th><th>Username</th><th>Role</th><th>Last Login</th><th style="text-align: right;">Actions</th></tr></thead>
-                        <tbody id="users-table-body"></tbody>
-                    </table>
-                </div>
-            </div>
-
-            <div id="devices-section" class="card hidden">
-                <div style="display: flex; justify-content: space-between; align-items: center;">
-                    <h2 id="devices-title" class="card-title" style="color: #f8fafc;">📱 Hardware Telemetry & Actuators</h2>
-                    <button onclick="logout()" style="background:none; border:none; color:#fb7185; text-decoration:underline; font-weight:700; cursor:pointer; font-size:0.75rem;">Log Out</button>
-                </div>
-                <div id="devices-list" class="grid-2"></div>
-            </div>
-
-            <div id="schedules-section" class="card hidden">
-                <h2 id="schedules-title" class="card-title card-title-amber">⏰ Recurring Daily Timers (Repeats Every Day)</h2>
-                <form onsubmit="createSchedule(event)" class="form-row">
-                    <select id="sched-system-id" onchange="filterScheduleDevices()" required class="flex-1"><option value="">Choose System...</option></select>
-                    <select id="sched-device-id" required class="flex-1"><option value="">Choose Actuator...</option></select>
-                    <select id="sched-action" required class="flex-1">
-                        <option value="">Choose Action...</option>
-                        <option value="ON">Turn ON</option>
-                        <option value="OFF">Turn OFF</option>
-                    </select>
-                    <input type="time" id="sched-time" required class="flex-1" title="Daily Time">
-                    <input type="number" id="sched-duration" min="0" required placeholder="Duration (sec, e.g. 5 or 0)" class="flex-1">
-                    <button type="submit" class="btn btn-amber">Save Daily Timer</button>
-                </form>
-                <div style="overflow-x: auto; padding-top: 0.5rem;">
-                    <table>
-                        <thead><tr><th>System</th><th>Device ID</th><th>Action</th><th>Daily Time</th><th>Duration</th><th style="text-align: right;">Cancel</th></tr></thead>
-                        <tbody id="schedules-table-body"></tbody>
-                    </table>
-                </div>
             </div>
 
             <div class="card">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
-                    <h2 style="font-size: 0.875rem; font-weight: 700; color: #94a3b8;">📜 Live Activity Console</h2>
-                    <button onclick="logout()" style="background:none; border:none; color:#fb7185; text-decoration:underline; font-weight:700; cursor:pointer; font-size:0.75rem;">Log Out</button>
-                </div>
-                <div id="console-log" class="log-console"><div>> Console initialized. Waiting for WebSocket telemetry...</div></div>
+                <h2 class="card-title">Your Systems</h2>
+                <div id="systems-list" class="grid-2"></div>
             </div>
         </div>
     </div>
 
     <script>
         const API_URL = window.location.hostname === 'localhost' ? 'http://localhost:3000/api' : '/api';
-        const WS_URL = window.location.hostname === 'localhost' ? 'ws://localhost:3000' : `wss://${window.location.host}`;
         let token = localStorage.getItem('iot_token');
         let currentMode = 'login';
-        let socket;
-        let selectedSystemId = null;
-        let cachedSystems = [];
-        let allDevices = [];
-
-        function log(msg) {
-            const consoleDiv = document.getElementById('console-log');
-            const time = new Date().toLocaleTimeString();
-            consoleDiv.innerHTML += `<div>[${time}] ${msg}</div>`;
-            consoleDiv.scrollTop = consoleDiv.scrollHeight;
-        }
-
-        function toggleAccountModal(show) {
-            const modal = document.getElementById('account-modal');
-            if (show) { modal.classList.remove('hidden'); loadAccountInfo(); } else { modal.classList.add('hidden'); }
-        }
 
         function switchAuthTab(mode) {
             currentMode = mode;
             document.getElementById('auth-error').classList.add('hidden');
-            const loginBtn = document.getElementById('tab-login');
-            const regBtn = document.getElementById('tab-register');
-            const authBtn = document.getElementById('auth-btn');
-            if (mode === 'login') {
-                loginBtn.style.borderBottom = '2px solid #6366f1'; loginBtn.style.color = '#818cf8';
-                regBtn.style.borderBottom = 'none'; regBtn.style.color = '#94a3b8';
-                authBtn.innerText = 'Login';
-            } else {
-                regBtn.style.borderBottom = '2px solid #6366f1'; regBtn.style.color = '#818cf8';
-                loginBtn.style.borderBottom = 'none'; loginBtn.style.color = '#94a3b8';
-                authBtn.innerText = 'Register Account';
-            }
+            document.getElementById('tab-login').style.borderBottom = mode === 'login' ? '2px solid #6366f1' : 'none';
+            document.getElementById('tab-login').style.color = mode === 'login' ? '#818cf8' : '#94a3b8';
+            document.getElementById('tab-register').style.borderBottom = mode === 'register' ? '2px solid #6366f1' : 'none';
+            document.getElementById('tab-register').style.color = mode === 'register' ? '#818cf8' : '#94a3b8';
+            document.getElementById('auth-btn').innerText = mode === 'login' ? 'Login' : 'Register Account';
         }
 
         async function handleAuth(e) {
             e.preventDefault();
             const username = document.getElementById('auth-username').value;
             const password = document.getElementById('auth-password').value;
-            const errorEl = document.getElementById('auth-error');
+            const errEl = document.getElementById('auth-error');
             try {
-                const endpoint = currentMode === 'login' ? '/login' : '/register';
-                const res = await fetch(API_URL + endpoint, {
-                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                const res = await fetch(API_URL + (currentMode === 'login' ? '/login' : '/register'), {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ username, password })
                 });
                 const data = await res.json();
                 if (!res.ok) throw new Error(data.error || 'Authentication failed');
-                if (currentMode === 'register') { alert('Registration successful! Please log in.'); switchAuthTab('login'); }
-                else { token = data.token; localStorage.setItem('iot_token', token); initDashboard(); }
-            } catch (err) { errorEl.innerText = err.message; errorEl.classList.remove('hidden'); }
-        }
-
-        function logout() { localStorage.removeItem('iot_token'); location.reload(); }
-
-        function getUserRole() {
-            if (!token) return 'user';
-            try {
-                const base64Url = token.split('.')[1];
-                const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-                const jsonPayload = decodeURIComponent(atob(base64).split('').map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)).join(''));
-                return JSON.parse(jsonPayload).role;
-            } catch (e) { return 'user'; }
-        }
-
-        async function loadAccountInfo() {
-            try {
-                const res = await fetch(API_URL + '/account', { headers: { 'Authorization': `Bearer ${token}` } });
-                if (res.ok) { const user = await res.json(); document.getElementById('account-username').value = user.username; }
-            } catch (err) { console.error('Failed to load account details'); }
-        }
-
-        async function updateAccount(e) {
-            e.preventDefault();
-            const username = document.getElementById('account-username').value;
-            const current_password = document.getElementById('current-password').value;
-            const new_password = document.getElementById('new-password').value;
-            const bodyData = { username };
-            if (new_password) { bodyData.current_password = current_password; bodyData.new_password = new_password; }
-            try {
-                const res = await fetch(API_URL + '/account', {
-                    method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                    body: JSON.stringify(bodyData)
-                });
-                const data = await res.json();
-                if (!res.ok) throw new Error(data.error);
-                alert(data.message); toggleAccountModal(false);
-                document.getElementById('current-password').value = ''; document.getElementById('new-password').value = '';
-                if (new_password) logout();
-            } catch (err) { alert(err.message); }
-        }
-
-        function initWebSocket() {
-            socket = new WebSocket(WS_URL);
-            socket.onopen = () => log('Connected to WebSocket Server');
-            socket.onmessage = (event) => {
-                const msg = JSON.parse(event.data);
-                if (msg.type === 'STATE') {
-                    log(`Telemetry [${msg.topic}]: ${msg.data}`);
-                    const deviceId = msg.topic.split('/')[1];
-                    const stateBadge = document.getElementById(`state-${deviceId}`);
-                    if (stateBadge) {
-                        stateBadge.innerText = msg.data; stateBadge.style.background = '#083344';
-                        stateBadge.style.color = '#67e8f9'; stateBadge.style.border = '1px solid #0e7490';
-                    }
+                if (currentMode === 'register') {
+                    alert('Registration successful! Please log in.');
+                    switchAuthTab('login');
+                } else {
+                    token = data.token;
+                    localStorage.setItem('iot_token', token);
+                    initDashboard();
                 }
-            };
-        }
-
-        function syncSystemSectionsVisibility() {
-            const isAdmin = getUserRole() === 'admin';
-            const devicesSection = document.getElementById('devices-section');
-            const schedulesSection = document.getElementById('schedules-section');
-            const closeBtn = document.getElementById('close-system-btn');
-            if (isAdmin || selectedSystemId) { devicesSection.classList.remove('hidden'); schedulesSection.classList.remove('hidden'); }
-            else { devicesSection.classList.add('hidden'); schedulesSection.classList.add('hidden'); }
-            if (selectedSystemId) closeBtn.classList.remove('hidden'); else closeBtn.classList.add('hidden');
-        }
-
-        function renderSystemsList() {
-            const container = document.getElementById('systems-list');
-            container.innerHTML = '';
-            if (cachedSystems.length === 0) {
-                container.innerHTML = `<p style="color:#94a3b8; font-size:0.75rem; font-style:italic;">No systems created yet. Create one above to get your shared project token.</p>`;
-                return;
+            } catch (err) {
+                errEl.innerText = err.message;
+                errEl.classList.remove('hidden');
             }
-            cachedSystems.forEach(sys => {
-                const isSelected = String(sys.id) === String(selectedSystemId);
-                container.innerHTML += `
-                    <div onclick="selectSystem('${sys.id}')" class="system-box ${isSelected ? 'active' : ''}">
-                        <div style="display:flex; justify-content:space-between; align-items:center;">
-                            <div>
-                                <h4 style="font-weight:700; color:#f8fafc; font-size:0.875rem;">${sys.system_name}</h4>
-                                <span style="font-size:0.75rem; color:#818cf8; font-weight:600;">${sys.hardware_type}</span>
-                            </div>
-                            <span style="font-size:0.7rem; color:${isSelected ? '#34d399' : '#94a3b8'}; font-weight:700;">${isSelected ? '● Opened' : 'Click to Open →'}</span>
-                        </div>
-                        <div class="token-badge">System Token: <strong>${sys.system_token}</strong></div>
-                    </div>
-                `;
-            });
+        }
+
+        function logout() {
+            localStorage.removeItem('iot_token');
+            location.reload();
+        }
+
+        function openSystemPage(systemId) {
+            window.location.href = `system.html?system_id=${encodeURIComponent(systemId)}`;
         }
 
         async function loadSystems() {
-            try {
-                const res = await fetch(API_URL + '/systems', { headers: { 'Authorization': `Bearer ${token}` } });
-                const systems = await res.json();
-                cachedSystems = Array.isArray(systems) ? systems : [];
-                const systemSelect = document.getElementById('device-system-id');
-                const schedSystemSelect = document.getElementById('sched-system-id');
-                systemSelect.innerHTML = '<option value="">Select System...</option>';
-                schedSystemSelect.innerHTML = '<option value="">Choose System...</option>';
-                cachedSystems.forEach(sys => {
-                    systemSelect.innerHTML += `<option value="${sys.id}">${sys.system_name} (${sys.hardware_type})</option>`;
-                    schedSystemSelect.innerHTML += `<option value="${sys.id}">${sys.system_name} (${sys.hardware_type})</option>`;
-                });
-                if (selectedSystemId) {
-                    if (systemSelect.querySelector(`option[value="${selectedSystemId}"]`)) systemSelect.value = selectedSystemId;
-                    if (schedSystemSelect.querySelector(`option[value="${selectedSystemId}"]`)) schedSystemSelect.value = selectedSystemId;
-                }
-                renderSystemsList();
-            } catch (err) { log('Failed to load systems'); }
-        }
-
-        async function selectSystem(systemId) {
-            selectedSystemId = systemId ? String(systemId) : null;
-            syncSystemSectionsVisibility();
-            renderSystemsList();
-            const schedSystemSelect = document.getElementById('sched-system-id');
-            const devSystemSelect = document.getElementById('device-system-id');
-            if (selectedSystemId) {
-                if (schedSystemSelect.querySelector(`option[value="${selectedSystemId}"]`)) schedSystemSelect.value = selectedSystemId;
-                if (devSystemSelect.querySelector(`option[value="${selectedSystemId}"]`)) devSystemSelect.value = selectedSystemId;
-                const sysObj = cachedSystems.find(s => String(s.id) === selectedSystemId);
-                log(`Opened system: ${sysObj ? sysObj.system_name : `System #${selectedSystemId}`}`);
-                await loadDevices();
-                await loadSchedules();
-            } else {
-                log('Closed system view');
+            const res = await fetch(API_URL + '/systems', { headers: { Authorization: `Bearer ${token}` } });
+            const systems = await res.json();
+            const list = document.getElementById('systems-list');
+            list.innerHTML = '';
+            if (!Array.isArray(systems) || systems.length === 0) {
+                list.innerHTML = `<p style="color:#94a3b8; font-size:0.875rem;">No systems yet. Create one above.</p>`;
+                return;
             }
-        }
-
-        function filterScheduleDevices() {
-            const selectedId = document.getElementById('sched-system-id').value;
-            const scheduleSelect = document.getElementById('sched-device-id');
-            scheduleSelect.innerHTML = '<option value="">Choose Actuator...</option>';
-            if (!selectedId) return;
-            allDevices.forEach(item => {
-                if (String(item.system_id) !== String(selectedId)) return;
-                if (!item.name.toLowerCase().includes('sensor')) {
-                    scheduleSelect.innerHTML += `<option value="${item.device_id}">${item.name} (${item.device_id})</option>`;
-                }
+            systems.forEach(sys => {
+                list.innerHTML += `
+                    <div onclick="openSystemPage('${sys.id}')" class="system-box">
+                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                            <div>
+                                <h3 style="margin:0; font-size:1rem;">${sys.system_name}</h3>
+                                <span style="font-size:0.75rem; color:#818cf8; font-weight:600;">${sys.hardware_type}</span>
+                            </div>
+                            <span style="font-size:0.75rem; color:#34d399; font-weight:700;">Open Page →</span>
+                        </div>
+                        <div class="token-badge">Token: ${sys.system_token}</div>
+                    </div>
+                `;
             });
         }
 
@@ -383,225 +152,25 @@
             e.preventDefault();
             const system_name = document.getElementById('system-name').value;
             const hardware_type = document.getElementById('hardware-type').value;
-            try {
-                const res = await fetch(API_URL + '/systems', {
-                    method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                    body: JSON.stringify({ system_name, hardware_type })
-                });
-                const data = await res.json();
-                if (!res.ok) throw new Error(data.error);
-                alert(`System created successfully!\n\nSystem Token: ${data.system_token}`);
-                document.getElementById('system-name').value = '';
-                await loadSystems();
-            } catch (err) { alert(err.message); }
-        }
-
-        async function loadAdminUsers() {
-            try {
-                const res = await fetch(API_URL + '/admin/users', { headers: { 'Authorization': `Bearer ${token}` } });
-                const users = await res.json();
-                const tbody = document.getElementById('users-table-body');
-                tbody.innerHTML = '';
-                users.forEach(u => {
-                    tbody.innerHTML += `
-                        <tr>
-                            <td style="font-family:monospace; color:#94a3b8;">${u.id}</td>
-                            <td style="font-weight:700; color:#e2e8f0;">${u.username}</td>
-                            <td><span style="padding:0.125rem 0.5rem; font-size:0.75rem; border-radius:0.25rem; font-weight:700; background:#1e1b4b; color:#a5b4fc; border:1px solid #3730a3;">${u.role}</span></td>
-                            <td style="font-size:0.75rem; color:#94a3b8;">${u.last_login}</td>
-                            <td style="text-align:right;">${u.role !== 'admin' ? `<button onclick="deleteUser(${u.id}, '${u.username}')" class="btn btn-rose" style="padding:0.25rem 0.5rem; font-size:0.75rem;">Delete</button>` : `<span style="font-size:0.75rem; color:#64748b; font-style:italic;">Protected</span>`}</td>
-                        </tr>
-                    `;
-                });
-            } catch (err) { log('Failed to load user accounts list'); }
-        }
-
-        async function deleteUser(id, username) {
-            if (!confirm(`Delete user "${username}" and all their systems/devices/timers?`)) return;
-            try {
-                const res = await fetch(API_URL + `/admin/users/${id}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` } });
-                if (!res.ok) throw new Error('Failed');
-                loadAdminUsers(); await loadSystems();
-                if (selectedSystemId || getUserRole() === 'admin') { await loadDevices(); await loadSchedules(); }
-            } catch (err) { alert(err.message); }
-        }
-
-        async function loadDevices() {
-            const role = getUserRole();
-            const isAdmin = role === 'admin';
-            const endpoint = isAdmin ? '/admin/monitor' : '/devices';
-            if (isAdmin) {
-                document.getElementById('system-card').classList.add('hidden');
-                document.getElementById('provision-card').classList.add('hidden');
-                document.getElementById('admin-users-section').classList.remove('hidden');
-                loadAdminUsers();
-            } else {
-                await loadSystems();
-            }
-            syncSystemSectionsVisibility();
-            if (!isAdmin && !selectedSystemId) return;
-            try {
-                const allRes = await fetch(API_URL + endpoint, { headers: { 'Authorization': `Bearer ${token}` } });
-                const allData = await allRes.json();
-                allDevices = Array.isArray(allData) ? allData : [];
-                if (isAdmin) {
-                    const seenSystems = new Map();
-                    allDevices.forEach(item => {
-                        if (item.system_id && !seenSystems.has(String(item.system_id))) seenSystems.set(String(item.system_id), `${item.system_name} (${item.username})`);
-                    });
-                    const schedSystemSelect = document.getElementById('sched-system-id');
-                    schedSystemSelect.innerHTML = '<option value="">Choose System...</option>';
-                    seenSystems.forEach((label, id) => { schedSystemSelect.innerHTML += `<option value="${id}">${label}</option>`; });
-                }
-                const visibleDevices = selectedSystemId ? allDevices.filter(d => String(d.system_id) === String(selectedSystemId)) : allDevices;
-                const activeSys = cachedSystems.find(s => String(s.id) === String(selectedSystemId));
-                document.getElementById('devices-title').innerText = isAdmin ? '🛡️ System-Wide Sensors & Actuators Monitor' : `📱 ${activeSys ? activeSys.system_name : 'System'} — Devices & Actuators`;
-                document.getElementById('schedules-title').innerText = activeSys ? `⏰ Recurring Daily Timers — ${activeSys.system_name}` : '⏰ Recurring Daily Timers (Repeats Every Day)';
-                const container = document.getElementById('devices-list');
-                container.innerHTML = '';
-                filterScheduleDevices();
-                if (visibleDevices.length === 0) {
-                    container.innerHTML = `<p style="color:#94a3b8; font-size:0.875rem; font-style:italic;">No hardware registered in this system yet.</p>`;
-                    return;
-                }
-                visibleDevices.forEach(item => {
-                    const deviceId = item.device_id; const deviceName = item.name;
-                    const systemName = item.system_name || 'Project'; const systemToken = item.system_token || 'N/A';
-                    if (!deviceId) return;
-                    const isSensor = deviceName.toLowerCase().includes('sensor');
-                    const ownerTag = isAdmin ? `<span style="font-size:0.75rem; color:#a5b4fc; background:#1e1b4b; padding:0.125rem 0.375rem; border-radius:0.25rem; border:1px solid #3730a3;">Owner: ${item.username}</span>` : '';
-                    container.innerHTML += `
-                        <div class="system-box" style="padding:1rem; cursor:default;">
-                            <div style="display:flex; justify-content:space-between; align-items:flex-start;">
-                                <div>
-                                    <div style="display:flex; align-items:center; gap:0.5rem; margin-bottom:0.25rem;"><h3 style="font-weight:700; color:#f8fafc;">${deviceName}</h3>${ownerTag}</div>
-                                    <p style="font-size:0.75rem; font-family:monospace; color:#94a3b8;">ID: ${deviceId} | System: <span style="color:#818cf8; font-weight:600;">${systemName}</span></p>
-                                </div>
-                                <span id="state-${deviceId}" style="padding:0.25rem 0.5rem; font-size:0.75rem; font-weight:700; border-radius:0.25rem; background:#0f172a; color:#cbd5e1; border:1px solid #334155;">${isSensor ? 'Listening...' : 'Waiting...'}</span>
-                            </div>
-                            <div class="token-badge">System Token: <strong>${systemToken}</strong></div>
-                            ${isSensor ? `<div style="background:#0f172a; padding:0.5rem; border-radius:0.25rem; border:1px solid #334155; font-size:0.75rem; color:#38bdf8; font-family:monospace;">Status: Connected Sensor (Telemetry Stream Active)</div>` : `<div style="display:flex; gap:0.5rem;"><button onclick="sendCommand('${systemToken}', '${deviceId}', 'ON')" class="btn btn-emerald" style="flex:1;">TURN ON</button><button onclick="sendCommand('${systemToken}', '${deviceId}', 'OFF')" class="btn btn-rose" style="flex:1;">TURN OFF</button></div>`}
-                            <div style="display:flex; justify-content:flex-end; margin-top:0.5rem;"><button onclick="deleteDevice(${item.id}, '${deviceName}')" style="background:none; border:none; color:#fb7185; text-decoration:underline; font-size:0.75rem; cursor:pointer;">Delete Device</button></div>
-                        </div>
-                    `;
-                });
-            } catch (err) { log('Failed to fetch devices data'); }
-        }
-
-        async function deleteDevice(id, name) {
-            if (!confirm(`Are you sure you want to delete device "${name}"?`)) return;
-            try {
-                const res = await fetch(API_URL + `/devices/${id}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` } });
-                const data = await res.json();
-                if (!res.ok) throw new Error(data.error || 'Failed to delete device');
-                log(`Device "${name}" deleted successfully.`);
-                await loadDevices(); await loadSchedules();
-            } catch (err) { alert(err.message); }
-        }
-
-        async function registerDevice(e) {
-            e.preventDefault();
-            const system_id = document.getElementById('device-system-id').value;
-            const device_id = document.getElementById('new-device-id').value;
-            const name = document.getElementById('new-device-name').value;
-            try {
-                const res = await fetch(API_URL + '/devices', {
-                    method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                    body: JSON.stringify({ system_id, device_id, name })
-                });
-                const data = await res.json();
-                if (!res.ok) throw new Error(data.error);
-                log(`Device registered successfully under system ID ${system_id}`);
-                alert(`Device added successfully to system!`);
-                document.getElementById('new-device-id').value = ''; document.getElementById('new-device-name').value = '';
-                if (selectedSystemId || getUserRole() === 'admin') await loadDevices();
-            } catch (err) { alert(err.message); }
-        }
-
-        async function createSchedule(e) {
-            e.preventDefault();
-            const system_id = document.getElementById('sched-system-id').value;
-            const device_id = document.getElementById('sched-device-id').value;
-            const action = document.getElementById('sched-action').value;
-            const daily_time = document.getElementById('sched-time').value;
-            const duration_sec = Number(document.getElementById('sched-duration').value);
-            try {
-                const res = await fetch(API_URL + '/schedules', {
-                    method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                    body: JSON.stringify({ system_id, device_id, action, daily_time, duration_sec })
-                });
-                const data = await res.json();
-                if (!res.ok) throw new Error(data.error);
-                log(`Daily timer saved: ${device_id} -> ${action} every day at ${daily_time} for ${duration_sec}s`);
-                document.getElementById('sched-time').value = ''; document.getElementById('sched-duration').value = '';
-                await loadSchedules();
-            } catch (err) { alert(err.message); }
-        }
-
-        async function loadSchedules() {
-            const isAdmin = getUserRole() === 'admin';
-            if (!isAdmin && !selectedSystemId) return;
-            try {
-                const query = selectedSystemId ? `?system_id=${encodeURIComponent(selectedSystemId)}` : '';
-                const res = await fetch(API_URL + '/schedules' + query, { headers: { 'Authorization': `Bearer ${token}` } });
-                const schedules = await res.json();
-                const tbody = document.getElementById('schedules-table-body');
-                tbody.innerHTML = '';
-                if (!Array.isArray(schedules) || schedules.length === 0) {
-                    tbody.innerHTML = `<tr><td colspan="6" style="padding:0.5rem; color:#64748b; font-style:italic;">No recurring timers set for this system.</td></tr>`;
-                    return;
-                }
-                schedules.forEach(s => {
-                    const timeDisplay = s.daily_time || (s.execute_at ? s.execute_at.slice(-5) : '--:--');
-                    const durSec = Number(s.duration_sec) || 0;
-                    const durLabel = durSec > 0 ? `${durSec} sec` : 'No auto-revert';
-                    const sysLabel = s.system_name || '—';
-                    tbody.innerHTML += `
-                        <tr>
-                            <td style="color:#818cf8; font-weight:600;">${sysLabel}</td>
-                            <td style="font-family:monospace; color:#cbd5e1;">${s.device_id}</td>
-                            <td style="font-weight:700; color:${s.action === 'ON' ? '#34d399' : '#fb7185'};">${s.action}</td>
-                            <td style="color:#cbd5e1;">Every day at ${timeDisplay}</td>
-                            <td style="color:#94a3b8;">${durLabel}</td>
-                            <td style="text-align:right;"><button onclick="deleteSchedule(${s.id})" style="background:none; border:none; color:#fb7185; text-decoration:underline; font-size:0.75rem; cursor:pointer;">Cancel</button></td>
-                        </tr>
-                    `;
-                });
-            } catch (err) { log('Failed to load schedules'); }
-        }
-
-        async function deleteSchedule(id) {
-            try {
-                await fetch(API_URL + `/schedules/${id}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` } });
-                await loadSchedules();
-                log(`Cancelled timer schedule ID: ${id}`);
-            } catch (err) { alert('Failed to delete schedule'); }
-        }
-
-        function sendCommand(system_token, device_id, state) {
-            if (socket && socket.readyState === WebSocket.OPEN) {
-                socket.send(JSON.stringify({ system_token, device_id, state }));
-                log(`Sent manual ${state} command to ${device_id} using system token`);
-            } else {
-                alert('WebSocket connection is not active.');
-            }
+            const res = await fetch(API_URL + '/systems', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                body: JSON.stringify({ system_name, hardware_type })
+            });
+            const data = await res.json();
+            if (!res.ok) return alert(data.error || 'Failed to create system');
+            document.getElementById('system-name').value = '';
+            await loadSystems();
         }
 
         async function initDashboard() {
             document.getElementById('auth-card').classList.add('hidden');
             document.getElementById('dashboard').classList.remove('hidden');
-            const userStatusEl = document.getElementById('user-status');
-            userStatusEl.classList.remove('hidden');
-            const role = getUserRole();
-            userStatusEl.innerText = role === 'admin' ? '👤 Admin Account' : '👤 Logged In';
-            syncSystemSectionsVisibility();
-            loadAccountInfo();
-            initWebSocket();
+            document.getElementById('logout-btn').classList.remove('hidden');
             await loadSystems();
-            if (role === 'admin') { await loadDevices(); await loadSchedules(); }
         }
 
-        if (token) { initDashboard(); }
+        if (token) initDashboard();
     </script>
 </body>
 </html>
